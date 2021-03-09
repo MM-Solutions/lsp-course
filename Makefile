@@ -1,7 +1,14 @@
+# Build rules for the presentations.
+
+# What to build.
+TARGETS=lsp-course-labs.pdf lsp-course-lecture-notes.pdf
+
+# --------------------------------------------------------------------------
+# Do not modify below this line.
 
 OUT=out
 
-all: lsp-course-labs.pdf lsp-course-lecture-notes.pdf
+all: $(TARGETS)
 
 $(OUT):
 	mkdir $(OUT)
@@ -13,3 +20,4 @@ $(OUT):
 
 clean:
 	rm -fr $(OUT)
+	rm -fr $(TARGETS)
