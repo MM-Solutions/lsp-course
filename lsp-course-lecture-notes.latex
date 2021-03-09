@@ -1,0 +1,68 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+
+\usepackage[
+    type={CC},
+    modifier={by-sa},
+    version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\usepackage{listingsutf8}
+
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+\lstset{
+    extendedchars=false,
+    language=C,
+    inputencoding=utf8
+}
+
+% Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index.html 
+\usetheme{Antibes}
+% Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index_by_color.html
+\usecolortheme{seahorse}
+
+
+\title{ Системно програмиране за Линукс }
+\subtitle{ лекции }
+\author{Ангел Чолаков}
+\institute{MM Solutions Ltd}
+\date{19.02.2021}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}
+  \doclicenseThis
+\end{frame}
+
+\begin{frame}[allowframebreaks]
+\frametitle{Съдържание}
+\tableofcontents
+\end{frame}
+
+
+\section{ Подготовка }
+\begin{frame}[fragile]
+  \frametitle{Подготовка}
+  За курса ще са необходими:
+  \begin{itemize}
+    \item TODO
+  \end{itemize}
+\end{frame}
+
+\end{document}

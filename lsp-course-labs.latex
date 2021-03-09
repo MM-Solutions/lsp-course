@@ -1,0 +1,295 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+
+\usepackage[
+    type={CC},
+    modifier={by-sa},
+    version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\usepackage{listingsutf8}
+
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+\lstset{
+    extendedchars=false,
+    language=C,
+    inputencoding=utf8
+}
+
+% Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index.html 
+\usetheme{Antibes}
+% Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index_by_color.html
+\usecolortheme{seahorse}
+
+
+\title{ Системно програмиране за Линукс }
+\subtitle{ упражнения }
+\author{Димитър Димитров}
+\institute{MM Solutions Ltd}
+\date{19.02.2021}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}
+  \doclicenseThis
+\end{frame}
+
+\begin{frame}[allowframebreaks]
+\frametitle{Съдържание}
+\tableofcontents
+\end{frame}
+
+
+\section{ Подготовка }
+\begin{frame}[fragile]
+  \frametitle{Подготовка}
+  За курса ще са необходими:
+  \begin{itemize}
+    \item Добро владеене на езика С.
+    \item Персонален компютър или лаптоп с инсталиран Линукс.
+      \begin{itemize}
+        \item Възможно е стартиране на Линукс от USB флашка, без инсталация на основния диск.
+	\item \url{https://ubuntu.com/tutorials/try-ubuntu-before-you-install}
+      \end{itemize}
+    \item Резервен вариант е да се ползва Линукс чрез локална или Web Browser виртуална машина.
+      \begin{itemize}
+        \item \url{https://ubuntu.com/appliance/vm}
+        \item \url{https://bellard.org/jslinux/vm.html?url=alpine-x86.cfg&mem=192}
+      \end{itemize}
+    \item Хъс.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Относно този документ}
+    Най-новата версия може да намерите на: \url{https://github.com/MM-Solutions/lsp-course} .
+
+\end{frame}
+
+\section{ Въведение }
+\subsection { Запознаване с командния ред }
+\begin{frame}[fragile]
+  \frametitle{ Терминал, shell }
+  \begin{itemize}
+    \item Дистрибуция - що е то. Избор.
+    \item Терминал.
+    \item Команден ред.
+      \begin{itemize}
+        \item \verb|Ctrl+D|
+        \item Auto-complete
+      \end{itemize}
+    \item Разходки из файловата система - \verb|ls|, \verb|cd|, \verb|pwd|.
+    \item \verb|top|, \verb|ps|.
+    \item su, sudo.
+    \item root и останалите потребители
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  Отворете терминал и изпробвайте командите.
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Текстов редактор }
+  Пробвай и избери!
+  \begin{itemize}
+    \item vi ← Препоръчвам!
+    \begin{itemize}
+      \item Има си самоучител: \verb|vimtutor|
+    \end{itemize}
+    \item gedit
+    \item nano.
+    \item emacs ← Любим редактор на множество хакери.
+    \item Много, много други.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Изпълними файлове }
+  \begin{itemize}
+    \item chmod - UNIX permissions
+    \item ELF.
+    \item Shell/Python/... scripts.
+    \item Shebang.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Помощ! }
+  \begin{itemize}
+    \item \verb|man|
+    \item \verb|man 1 kill| или \verb|man 2 kill|
+    \begin{itemize}
+      \item \verb|man man|
+    \end{itemize}
+    \item \verb|apropos|
+    \item \verb|whatis|
+    \item \verb|help| - за вградени команди на shell
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  Създайте скрипт, който да:
+  \begin{enumerate}
+    \item Разпечатва един ред с текущата директория.
+    \item След това разпечатва списък с файловете.
+    \item Списъкът да съдържа освен имената на файловете, и техните размери, собственици и права.
+  \end{enumerate}
+
+  Съвет: Ползвайте \verb|man ls|
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Unix shell }
+  \begin{itemize}
+    \item Променливи на обвивката (environment variables).
+    \item Променливи на средата (shell variables).
+    \item \verb|echo|
+    \item \verb|PATH|
+    \item \verb|cat|, \verb|echo|, \verb|less|
+    \item \verb|cp|, \verb|mv|, \verb|mkdir|
+    \item \verb|ln| - soft and hard.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Многозадачност с Unix Shell }
+  \begin{itemize}
+    \item \verb|bg|, \verb|fg|, \verb|&|, \verb|wait|
+    \item \verb|Ctrl+Z| vs \verb|Ctrl+C|
+    \item \verb|jobs|
+    \item \verb|kill|
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Тръби }
+  \begin{itemize}
+    \item Pipes.
+    \item stderr, stdout, stdin.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  TODO
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Всичко е файл! }
+  \begin{itemize}
+    \item \verb|/dev| -> Диск? Сериен порт? Температурен датчик?
+    \item \verb|/proc|
+    \item \verb|/sys|
+    \item Даже и тръбите: \verb|mkfifo|
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  TODO
+\end{frame}
+
+\subsection { Елементарни автоматизации с Unix Shell. }
+
+\begin{frame}[fragile]
+  \frametitle{ Shell scripts }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+\section { Първа Линукс програма }
+\subsection { Компилатори. Крос-компилатори. Фази на компилацията. ELF/HEX/контейнери. }
+
+\begin{frame}[fragile]
+  \frametitle{ Компилатори }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+\section { Проект }
+\subsection { GNU Make. Системи за построяване на софтуер. Първи проект. }
+
+\begin{frame}[fragile]
+  \frametitle{ GNU Make }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+\subsection { Системи за управление на версиите. GIT, github/gitlab. }
+
+\begin{frame}[fragile]
+  \frametitle{ GIT }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+\section { Същински програми }
+\subsection { Pthreads. Разпаралеляване на примерна задача (quicksort). Демонстриране на механизми за синхронизация. }
+
+\begin{frame}[fragile]
+  \frametitle{ PThreads }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+\subsection { Pipes. Обмяна на съобщения между процеси или нишки. }
+\begin{frame}[fragile]
+  \frametitle{ Pipes }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+
+\subsection { Mmap. Оптимизирано боравене с файлове.}
+\begin{frame}[fragile]
+  \frametitle{ mmap }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+
+\subsection { Strace. Syscalls, ioctl. }
+\begin{frame}[fragile]
+  \frametitle{ strace }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+
+\section { Вграден Линукс }
+\subsection { GPIO, I2C - drivers in userspace. }
+\begin{frame}[fragile]
+  \frametitle{ Стандартни интерфейси към периферията }
+  \begin{itemize}
+    \item TODO.
+  \end{itemize}
+\end{frame}
+
+\end{document}
