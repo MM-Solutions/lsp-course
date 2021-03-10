@@ -31,7 +31,7 @@
 % Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index.html 
 \usetheme{Antibes}
 % Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index_by_color.html
-\usecolortheme{seahorse}
+\usecolortheme{seagull}
 
 \logo{
   \def\svgwidth{2cm}
