@@ -1,0 +1,601 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={},
+		inputencoding=utf8,
+		basicstyle=\sffamily\footnotesize,
+		breaklines=true
+}
+
+% Theme selection
+% Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index.html
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+% Pick one from https://deic-web.uab.cat/~iblanes/beamer_gallery/index_by_color.html
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=block title alerted.bg!10!bg}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{./images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{ Системно програмиране за Линукс }
+\subtitle{ Уводна лекция }
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{./images/Logo_MMS_svg.pdf_tex}
+}
+\date{11.03.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\frametitle{За курса}
+	\def\svgwidth{\paperwidth}
+	\def\svgwidth{\paperheight}
+	\input{./images/Title_slide.pdf_tex}
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Представяне}
+\begin{frame}[fragile]
+	\frametitle{MMSolutions - лидерът в мобилните камера решения}
+	% Set the position here
+	\begin{minipage}[t][.2\textheight][t]{\textwidth}
+		\begin{center}
+			\includegraphics[width=\linewidth,height=.2\textheight,keepaspectratio]{images/lec_1/fig_1.png}
+		\end{center}
+	\end{minipage}
+	\vfill
+	\noindent
+	\begin{minipage}[t][.7\textheight][t]{\textwidth}
+		\begin{itemize}
+			\item Области на експертиза:
+			      \begin{itemize}
+				      \item основана през 2001г., произлизаща от Daisy Group;
+				      \item алгоритми за обработка на изображения в мобилни телефони;
+				      \item управление и тюнинг на камера сензори;
+				      \item разработка на решения за Андроид базирани мобилни устройства;
+				      \item проектиране и прототипизиране на специализирани хардуерни платформи
+			      \end{itemize}
+		\end{itemize}
+	\end{minipage}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Защо да посещавам този курс?}
+	\begin{itemize}
+		\item Запитвали ли сте се:
+		      \begin{itemize}
+			      \item какви принципи са в основата на съвременните ОС?
+			      \item как да се възползваме програмно от възможностите на ОС?
+			      \item как се управлява достъпът до системните ресурси?
+			      \item как се извършва синхронизацията на потребителски процеси?
+			      \item как да научим повече за Линукс ОС и Линукс ядрото?
+		      \end{itemize}
+	\end{itemize}
+\end{frame}
+
+% Подготовка
+\section{Подготовка}
+\begin{frame}[fragile]
+	\frametitle{Подготовка}
+	За курса ще са необходими:
+	\begin{itemize}
+		\item най-вече ентусиазъм и мотивация;
+		\item базови познания по C програмиране;
+		\item компютър (може и стар преносим такъв);
+		\item Интернет достъп и удобен текстови редактор;
+		\item Не се изисква предварителен опит с Линукс
+	\end{itemize}
+\end{frame}
+
+\section{График и цели на курса}
+\begin{frame}[fragile]
+	\frametitle{Планирано провеждане и организация}
+	\begin{itemize}
+		\item планирано начало - 22.03.2021г.;
+		\item продължителност - 10 или 11 учебни седмици;
+		\item лекции - 3 учебни часа седмично;
+		\item упражнения - 2 учебни часа седмично;
+		\item споделяне на материалите - в \url{https://github.com/MM-Solutions};
+		\item практическа ориентация и текущи задачи;
+		\item \textbf{записки?} - няма напълно все още, но пък има множество Интернет ресурси :)
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Схема на оценяване}
+	\begin{itemize}
+		\item \textbf{либерално оценяване} - преминал или не;
+		\item 30 \% - от участие и проявен интерес;
+		\item 70 \% - от изпълнение на текущи задачи;
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Основни цели на курса}
+	\begin{itemize}
+		\item стимулира интереса към създаване на Posix C проекти с GNU Make, GCC и GIT;
+		\item да послужи като въведение в света на Линукс системното програмиране;
+		\item разгледа основни понятия, свързани със структурата на една ОС;
+		\item спомогне за последващо по-задълбочено изучаване на механизмите на Линукс ядрото
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Препоръчвани свободно достъпни онлайн книги}
+	\begin{columns}[T]
+		\begin{column}{.4\textwidth}
+			\begin{exampleblock}{}
+				% Image included here
+				\begin{center}
+					\begin{figure}
+						\includegraphics[width=.35\textwidth, height=.5\textheight, keepaspectratio]{./images/lec_1/fig_12.png}
+						\caption{автор: William Shots}
+					\end{figure}
+				\end{center}
+			\end{exampleblock}
+		\end{column}
+		\begin{column}{.4\textwidth}
+			\begin{exampleblock}{}
+				% Image included here
+				\begin{center}
+					\begin{figure}
+						\includegraphics[width=.35\textwidth, height=.5\textheight, keepaspectratio]{./images/lec_1/fig_13.png}
+						\caption{автори: R. H. и A. C Arpaci-Dusseau }
+					\end{figure}
+				\end{center}
+			\end{exampleblock}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Как се разграничават системното и приложно програмиране?}
+	\begin{itemize}
+		\item\textbf{Системно програмиране}
+		      \begin{itemize}
+			      \item обезпечава функционирането на една компютърна система;
+			      \item създава среда за изпълнение на други приложения;
+			      \item подпомага работата на други софтуерни компоненти
+		      \end{itemize}
+		\item\textbf{Приложно програмиране}
+		      \begin{itemize}
+			      \item реализира функция, ориентирана към потребителя;
+			      \item възползва се от наличните системни компоненти
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Микропроцесорите са навсякъде днес...}
+	\begin{center}
+		\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{./images/lec_1/fig_2.jpg}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Кратка предистория}
+	\begin{columns}[T]
+		\begin{column}{.5\textwidth}
+			\begin{block}{Еволюцията на микропроцесорните архитектури}
+				% Text included here
+				\begin{itemize}
+					\item през 1971г. се появява първият микроконтролер - Intel 4004;
+					\item стимулира се появата на ново поколение микропроцесорни системи;
+					\item довежда до революция в електронната индустрия
+				\end{itemize}
+			\end{block}
+		\end{column}
+		\begin{column}{.5\textwidth}
+			\begin{block}{"Busicom Calculator с Intel 4004"}
+				% Image included here
+				\begin{center}
+					\begin{figure}
+						\includegraphics[width=.5\textwidth]{./images/lec_1/fig_3.jpg}
+						\caption{pic. by leighklotz, CC BY 2.0 via creativecommons.org}
+					\end{figure}
+				\end{center}
+			\end{block}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\section{Системно програмиране}
+\frame {
+	\frametitle{Развитие на системното програмиране}
+	\begin{itemize}
+		\item\textbf{Появяват се платформени езици от високо ниво като:}
+		      \begin{itemize}
+			      \item ALGOL и др.;
+			      \item PL/1;
+			      \item C;
+		      \end{itemize}
+		\item\textbf{Зараждат се първите комплексни операционни системи:}
+		      \begin{itemize}
+			      \item Burroughs Master Control Program, 1961
+			      \item Multics, 1969;
+			      \item Unix - Bell labs, 1971;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}
+	\frametitle{Атрибути на системното програмиране}
+	\begin{itemize}
+		\item разработчиците се възползват от възможностите на наличния хардуер оптимално;
+		\item произвежданият програмен продукт е оптимизиран и адаптиран към средата и времевите изисквания на приложението;
+		\item използват се специализирани инструменти за анализ, профилиране и дебъгване;
+		\item подпомага обезпечаването на среда за изпълнение на програмни задания на високо ниво;
+	\end{itemize}
+\end{frame}
+
+\section{Свободен софтуер}
+\begin{frame}[fragile]
+	\frametitle{Какво представлява свободният софтуер и какво общо има със системното програмиране?}
+	\begin{block}{Смисълът не е еднозначен...}
+		\begin{itemize}
+			\item терминът \textbf{"свободен софтуер"} се появява през 80-те години на 20-ти век от Richard Stallman;
+			\item не трябва да считаме свободния софтуер като такъв, който непременно се разпространява безплатно;
+			\item става дума за наблягане върху произтичащите \textbf{свободи и отговорности}, а не задължително липса на цена.
+		\end{itemize}
+	\end{block}
+\end{frame}
+
+\section{Движението GNU}
+\begin{frame}[fragile]
+	\frametitle{Движението GNU}
+	\begin{center}
+		\begin{figure}
+			% Image included here
+			\includegraphics[width=.6\textwidth, height=0.5\textwidth, keepaspectratio]{./images/lec_1/fig_4.jpg}
+			\caption{pic. by OsamaK - CC BY-SA 2.0 via creativecommons.org}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Появата на Линукс ядрото}
+\begin{frame}[fragile]
+	\frametitle{Появата на Линукс ядрото}
+	\begin{center}
+		\begin{figure}
+			% Image included here
+			\includegraphics[width=.7\textwidth, height=0.4\textwidth, keepaspectratio]{./images/lec_1/fig_5.png}
+			\caption{Времева линия на ОС, вдъхновили създаването на Линукс ядрото}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+% By default it seems you cannot have columns with equal height
+\begin{frame}[fragile]
+	\frametitle{Появата на Линукс ядрото}
+	\begin{columns}[T]
+		\begin{column}{0.3\textwidth}
+			\begin{minipage}[t][.7\textheight][t]{\textwidth}
+				\begin{figure}
+					% Image included here
+					\includegraphics[width=\textwidth,height=.5\textheight,keepaspectratio]{./images/lec_1/fig_11.jpg}
+					\caption{pic. by krd CC-BY-SA-4.0 via Wikimedia Commons}
+				\end{figure}
+			\end{minipage}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			\begin{minipage}[t][.7\textheight][t]{\textwidth}
+				\normalsize{
+					\begin{itemize}
+						\item Финландецът Linus Torvalds се вдъхновява силно от идеологията на Richard Stallman и GNU движението;
+						\item недоволен от лицензните ограничения на Unix-подобната ОС Minix, Torvalds решава да разработи свободно лицензирана алтернатива;
+						\item версия 1.0 на Линукс ядрото е оповестена през 1994 г.;
+					\end{itemize}
+				}
+			\end{minipage}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\section{Вградените системи днес}
+\begin{frame}
+	\frametitle{Основни характеристики на вградените системи днес}
+	\begin{itemize}
+		\item специализирано предназначение;
+		\item използване на микропроцесорни решения (вместо микроконтролери);
+		\item наличие на широка гама комуникационни интерфейси - I2C, SPI, USB, Еthernet и др.;
+		\item възможност за обработка на данни в реално време;
+		\item използване на богат набор периферни компоненти
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Предизвикателства и цели в разработката на вградени системи}
+	\begin{itemize}
+		\item нарастваща паралелизация на изчисленията;
+		\item въвеждане на новаторски потребителски интерфейси;
+		\item адаптиране на модела на софтуерните приложения за многозадачна работа;
+		\item обработка на все по-голям обем поточни данни в реално време;
+		\item конструиране на нов тип функционални блокове
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Популярността на Линукс в контекста на вградените системи}
+	\begin{center}
+		\begin{figure}
+			% Image included here
+			\includegraphics[width=.5\textwidth, height=0.4\textwidth, keepaspectratio]{./images/lec_1/fig_6.png}
+			\caption{Raspberry PI - най-популярната Линукс хоби развойна среда за обучителни цели}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Предимства и организация на Линукс ОС}
+\begin{frame}
+	\frametitle{Предимства на Линукс базираните решения}
+	\begin{itemize}
+		\item отворен характер на разработка;
+		\item утвърдени практики на сътрудничество;
+		\item устойчива структура и богата системна функционалност;
+		\item нарастваща общност от разработчици и ползватели;
+		\item по-ниска себестойност на операционната система в сравнение със съществуващи алтернативи;
+	\end{itemize}
+\end{frame}
+
+\frame {
+	\frametitle{Организация на една Линукс ОС}
+	\begin{itemize}
+		\item\textbf{В основата е Линукс ядрото}
+		      \begin{itemize}
+			      \item обезпечава необходимата системна функционалност;
+			      \item служи като среда за изпълнение и управление на потребителски програми;
+			      \item налице са множество разклонения на изходния код според версията и степента на стабилност;
+			      \item колекцията от системни библиотеки и помощни програми, събрани редом с ядрото, се нарича \textbf{дистрибуция};
+		      \end{itemize}
+		\item\textbf{Моделът на разработка е децентрализиран}
+		      \begin{itemize}
+			      \item дейностите по координиране са поемат от различни утвърдени организации;
+			      \item отделните дистрибуции се различават според избраната стратегия за обновяване и достъпност на пакетите
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Страница на "The Linux Kernel Archives" портала}
+	\begin{center}
+		\begin{figure}
+			% Image included here
+			\includegraphics[width=.7\textwidth, height=.7\textwidth, keepaspectratio]{./images/lec_1/fig_7.png}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Основни подразделения в разработката на Линукс ядрото}
+	\begin{itemize}
+		\item prepatch - издания, включващи последни нововъведения;
+		\item mainline - издания, представляващи основното дърво на разработка;
+		\item stable - стабилни издания, които произлизат от mainline линията на разработка;
+		\item longterm - по-стари версии на ядрото, при които се прилагат само критични обновления;
+	\end{itemize}
+\end{frame}
+
+\section{Първи стъпки с Линукс}
+\begin{frame}
+	\frametitle{Дотук добре, а как да започна?}
+	\begin{itemize}
+		\item\textbf{Направете зареждаща USB флаш памет с Убунту, чрез например:}
+		      \begin{itemize}
+			      \item \url{https://ubuntu.com/tutorials/create-a-usb-stick-on-windows};
+			      \item \url{https://releases.ubuntu.com/18.04.5/};
+			      \item необходимо е PC с поне 2 GB RAM и 4 GB USB флаш памет като минимум
+		      \end{itemize}
+		\item\textbf{Инсталирайте Линукс дистрибуция във виртуална машина:}
+		      \begin{itemize}
+			      \item \url{https://askubuntu.com/questions/142549/how-to-install-ubuntu-on-virtualbox};
+			      \item \url{https://www.virtualbox.org/wiki/Downloads};
+			      \item подходящо решение, ако разполагате с по-мощна PC конфигурация
+		      \end{itemize}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Примерни текстови редактори}
+	\begin{columns}[T]
+		\begin{column}{.4\textwidth}
+			\begin{exampleblock}{}
+				% Image included here
+				\begin{center}
+					\textbf{{Visual Studio Code}}
+					\begin{figure}
+						\includegraphics[width=.35\textwidth, height=.35\textheight, keepaspectratio]{./images/lec_1/fig_8.png}
+						\caption{pic. by Microsoft, Public domain, via Wikimedia Commons}
+					\end{figure}
+				\end{center}
+			\end{exampleblock}
+		\end{column}
+		\begin{column}{.4\textwidth}
+			\begin{exampleblock}{}
+				% Image included here
+				\begin{center}
+					\textbf{VIM}
+					\begin{figure}
+						\includegraphics[width=.35\textwidth, height=.35\textheight, keepaspectratio]{./images/lec_1/fig_9.png}
+						\caption{pic. by Fabián Alexis, CC BY-SA 3.0 via Wikimedia Commons}
+					\end{figure}
+				\end{center}
+			\end{exampleblock}
+		\end{column}
+	\end{columns}
+	\begin{center}
+		\begin{itemize}
+			\item \url{https://opensource.com/article/19/3/getting-started-vim}
+			\item \url{https://code.visualstudio.com/docs/introvideos/basics}
+		\end{itemize}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{С какво ще се забавляваме по-натам?}
+	\begin{center}
+		\begin{figure}
+			% Image included here
+			\includegraphics[width=.6\textwidth, height=.4\textheight, keepaspectratio]{./images/lec_1/fig_10.png}
+			\caption{Примерно изображение на команден терминал}
+		\end{figure}
+		\begin{itemize}
+			\normalsize{
+			\item Ще взаимодействаме през shell - текстово ориентиран команден интерпретатор;
+			\item Предстои да научим основни команди за работа с файловата система и създаване на C приложения
+			}
+		\end{itemize}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Основни команди за инсталиране и управление на пакети чрез apt-get}
+	\begin{center}
+		\begin{itemize}
+			\scriptsize{
+			\item apt-get update - обновяване на метаданните;
+			\item apt-get install \textless pkg \textgreater - инсталиране на пакет;
+			\item apt-get upgrade - обновяване на инсталираните пакети без премахване на съществуващи;
+			\item apt-get dist-upgrade - обновяване на инсталираните пакети и зависимости, но с риск от премахване на пакети;
+			\item apt-get remove \textless pkg \textgreater - премахване на пакет заедно с неговите конфигурационни файлове;
+			\item apt-get autoremove - премахване на пакети, които вече не са необходими;
+			\item apt-get purge \textless pkg \textgreater - цялостно премахване на пакет заедно с конфигурационните файлове;
+			\item apt-get clean - изчистване на хранилището с локално свалени пакети;
+			\item apt-cache search \textless reg exp \textgreater - търсене на пакет със съвпадаща сигнатура;
+			}
+		\end{itemize}
+	\end{center}
+\end{frame}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://www.gnu.org/}
+		\item \url{https://www.kernel.org/}
+		\item \url{https://tldp.org/LDP/intro-linux/html/index.html}
+		\item \url{https://en.wikipedia.org/wiki/Intel_4004}
+		\item \url{https://www.raspberrypi.org/}
+		\item \url{https://linuxcommand.org/tlcl.php}
+		\item \url{https://pages.cs.wisc.edu/~remzi/OSTEP/}
+		\item \url{https://www.cs.cornell.edu/courses/cs2043/2019sp/schedule.html}
+		\item \url{https://en.wikipedia.org/wiki/Linux_kernel}
+		\item \url{https://en.wikipedia.org/wiki/Operating_system}
+		\item \url{https://www.debian.org/doc/manuals/debian-reference/ch02.en.html}
+		\item \url{https://search.creativecommons.org/}
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към графични материали}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://search.creativecommons.org/photos/cb69d45e-6190-46f7-be94-46c97da0d2e5}
+		\item \url{https://search.creativecommons.org/photos/a9221794-1e84-4328-9dd2-22c817bb9f30}
+		\item \url{https://en.wikipedia.org/wiki/Atlas_(computer)}
+		\item \url{https://en.wikipedia.org/wiki/Intel_80386}
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}

@@ -1,7 +1,10 @@
 # Build rules for the presentations.
 
+# List of lectures
+TARGETS_DOCS=$(shell find ./ -type f -name 'lsp-course-*.latex')
+
 # What to build.
-TARGETS=lsp-course-labs.pdf lsp-course-lecture-notes.pdf
+TARGETS=$(patsubst %.latex,%.pdf,$(TARGETS_DOCS))
 
 # --------------------------------------------------------------------------
 # Do not modify below this line.
