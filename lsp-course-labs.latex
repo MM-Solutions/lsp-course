@@ -106,7 +106,7 @@
         \item \verb|Ctrl+D|
         \item Auto-complete
       \end{itemize}
-    \item Разходки из файловата система - \verb|ls|, \verb|cd|, \verb|pwd|.
+    \item Разходки из файловата система - \verb|ls|, \verb|cd|, \verb|pwd|, \verb|tree|.
     \item \verb|top|, \verb|ps|.
     \item su, sudo.
     \item root и останалите потребители
@@ -166,7 +166,7 @@
     \item Списъкът да съдържа освен имената на файловете, и техните размери, собственици и права.
   \end{enumerate}
 
-  Съвет: Ползвайте \verb|man ls|
+  Съвет: Ползвайте \verb|pwd|, \verb|man ls|
 \end{frame}
 
 \begin{frame}[fragile]
@@ -197,12 +197,11 @@
   \begin{itemize}
     \item Pipes.
     \item stderr, stdout, stdin.
+    \item пренасочване чрез \verb|>|, \verb|>>|, \verb|1>|, ...
+    \item \verb|tee|
+    \item \verb|dd|
+    \item Филтри: \verb|sort|, \verb|wc|, \verb|cut|, \verb|xxd|
   \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{ Задача }
-  TODO
 \end{frame}
 
 \begin{frame}[fragile]
@@ -217,7 +216,9 @@
 
 \begin{frame}[fragile]
   \frametitle{ Задача }
-  TODO
+  Напишете скрипт, който да разпечатва на екрана първите 160 байта от даден файл в HEX формат.
+
+  Съвет: Ползвайте \verb|man dd|, \verb|man xxd|, \verb|head|
 \end{frame}
 
 \subsection { Елементарни автоматизации с Unix Shell. }
@@ -225,7 +226,16 @@
 \begin{frame}[fragile]
   \frametitle{ Shell scripts }
   \begin{itemize}
-    \item TODO.
+    \item входни параметри.
+    \item TODO
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ CRON }
+  Изпълнение на наши задачи в указан час.
+  \begin{itemize}
+    \item \verb|man crontab|
   \end{itemize}
 \end{frame}
 
