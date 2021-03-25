@@ -45,7 +45,7 @@
   \def\svgwidth{5cm}
   \input{./images/Logo_MMS_svg.pdf_tex}
 }
-\date{19.02.2021}
+\date{01.04.2021}
 
 
 \begin{document}
@@ -107,6 +107,8 @@
         \item Auto-complete
       \end{itemize}
     \item Разходки из файловата система - \verb|ls|, \verb|cd|, \verb|pwd|, \verb|tree|.
+    \item Текуща \verb|.| и по-горна папка \verb|..|
+    \item Разделител в пътя: \verb|/|
     \item \verb|top|, \verb|ps|.
     \item su, sudo.
     \item root и останалите потребители
@@ -136,10 +138,20 @@
 \begin{frame}[fragile]
   \frametitle{ Изпълними файлове }
   \begin{itemize}
-    \item chmod - UNIX permissions
+    \item UNIX permissions: \verb|chmod ugo+rwx MYFILE|
+\begin{lstlisting}
+drwxr-xr-x
+ \./\./\./
+  |  |  '---- Other
+  |  '------- Group
+  '---------- User owner
+\end{lstlisting}
     \item ELF.
     \item Shell/Python/... scripts.
     \item Shebang.
+\begin{lstlisting}
+#!/bin/sh
+\end{lstlisting}
   \end{itemize}
 \end{frame}
 
@@ -172,7 +184,7 @@
 \begin{frame}[fragile]
   \frametitle{ Unix shell }
   \begin{itemize}
-    \item Променливи на обвивката (environment variables).
+    \item Променливи на обвивката (environment variables). \verb|printenv|
     \item Променливи на средата (shell variables).
     \item \verb|echo|
     \item \verb|PATH|
@@ -180,6 +192,19 @@
     \item \verb|cp|, \verb|mv|, \verb|mkdir|
     \item \verb|ln| - soft and hard.
   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  Направете мека и твърда връзка към скрипта от предишната задача.
+  \begin{enumerate}
+    \item Какъв е резултата от \verb|ls -l|
+    \item Разпечатайте (\verb|cat|) съдържанието на трите файла.
+    \item Изтрийте оригиналния файл. Има ли разлика в \verb|ls -l| ?
+    \item Има ли валидно съдържание в двете връзки (\verb|cat|) ?
+  \end{enumerate}
+
+  Съвет: Ползвайте \verb|pwd|, \verb|man ls|
 \end{frame}
 
 \begin{frame}[fragile]
