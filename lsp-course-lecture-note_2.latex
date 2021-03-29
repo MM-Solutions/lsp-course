@@ -1,0 +1,628 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Операционни системи: предназначение и организация}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{19.03.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Въведение}
+	\begin{itemize}
+		\item Какво е операционна система?
+		      \begin{itemize}
+			      \item неделима част от програмното осигуряване на една компютърна система;
+			      \item грижи се за управлението на системните ресурси и обезпечаването на среда за потребителско взаимодействие.
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да поясни:
+		      \begin{itemize}
+			      \item как се дефинира понятието ОС;
+			      \item какви са основните цели в процеса на разработка на ОС;
+			      \item какво е различието между политика и механизъм;
+			      \item посочи разновидности ОС според заложените политики и механизми;
+			      \item очертае структурната организация на Линукс ядрото;
+			      \item постави основите на автоматизиране на процеси по създаване на приложения с GNU Make
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Исторически етапи}
+\frame {
+	\frametitle{Исторически етапи в разработката на ОС}
+	\begin{itemize}
+		\item Предназначение на \textbf{монитор} програмата
+		      \begin{itemize}
+			      \item зареди в паметта програмни задания;
+			      \item стартира изпълнението им и изведе резултат;
+		      \end{itemize}
+		\item Еволюционно развитие
+		      \begin{itemize}
+			      \item мониторът се преработва из основи и се разраства съобразно символните машинни езици;
+			      \item вграждат се редица функции по обработка на системни прекъсвания, поддържане на многозадачен режим на работа и управление на паметта;
+			      \item програмното обезпечаване се допълва чрез колекция системни приложения: \textbf{компилатор}, \textbf{свързващ редактор} и \textbf{интерактивен интерпретатор} на команди
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Илюстрация на Фон-Ноймановата архитектура}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.8\textwidth, height=0.7\textheight, keepaspectratio]{images/lec_2/fig_1.png}
+			\caption{pic. based on work by W. Nowicki, CC BY-SA 3.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Дефиниция на ОС}
+\frame {
+	\frametitle{Дефиниция на ОС}
+	\begin{itemize}
+		\item От гледната точка на \textbf{системните архитекти}:
+		      \begin{itemize}
+			      \item подсигурява управлението на привързаните хардуерни компоненти посредством драйвери (подсистеми в състава на ОС, които се третират като форма на комуникационен и управляващ интерфейс);
+			      \item менажира и координира достъпа до наличните ресурси, като предоставя механизми за арбитраж и решаване на конфликти;
+			      \item подсигурява среда за последователно или паралелно изпълнение на множество потребителски задачи, наречени процеси;
+			      \item гарантира изолация между програмите и данните на различните потребители - както по отношение на адресното пространство, така и по отношение на правомощията за достъп
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Дефиниция на ОС}
+	\begin{itemize}
+		\item От гледната точка на \textbf{потребителите}:
+		      \begin{itemize}
+			      \item ядро и колекция от свързани системни програми;
+			      \item ядрото се възприема като контролна програма, чието изпълнение е непрекъснато и жизненоважно за стартирането и управлението на системни и потребителски задачи;
+			      \item изпълняваните приложни програми се възползват от функциите на операционната система посредством програмни интерфейси и системни библиотеки-посредници;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Режими на работа със системните ресурси}
+	\begin{itemize}
+		\item \textbf{Привилегирован}:
+		      \begin{itemize}
+			      \item kernel mode - режим на ядрото, в който се позволява работа с пълния набор ресурси и достъпът до физическата памет е без ограничения;
+		      \end{itemize}
+		\item \textbf{Потребителски}:
+		      \begin{itemize}
+			      \item user mode, при който всеки процес се изпълнява в заделена и изолирана област от паметта без директен достъп до функционалността на хардуера;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{ОС и вградените системи}
+\begin{frame}[fragile]
+	\frametitle{ОС в контекста на една вградена система днес}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.6\textwidth, height=0.6\textheight, keepaspectratio]{images/lec_2/fig_2.png}
+			\caption{pic. based on publicly available ARM-based SoC descriptions, e.g.: \url{https://en.wikipedia.org/wiki/ARM_Cortex-A72}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Струтктура на една система върху чип (SoC)}
+	\begin{itemize}
+		\item Основни блокове:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item микропроцесорен блок (обикновено RISC-базиран) с няколко процесорни ядра;
+			      \item блок, който подсигурява бърз вторичен кеш;
+			      \item контролер за управление на паметта (MMU + DRAM controller);
+			      \item бърза системна шина с поддръжка за динамично управление на захранването и тактовите честоти на отделните функционални звена;
+			      \item графичен процесор за ускоряване на работата с приложения, свързани с тримерна графика (GPU);
+			      \item опционален копроцесор за обработка на двумерни изображения и камера сензори (ISP);
+			      \item опционален копроцесор за обработка на цифрови сигнали - за целите на аудио/видео обработки, кодеци и др. (DSP);
+			      \item периферни контролери за менажиране на разнообразни входно-изходни физически интерфейси като I2C, SPI, USB и др.;
+			      \item малък блок EPROM/FLASH памет за съхранение на конфигурационни данни;
+			      \item други специализирани блокове за обезпечаване на телекомуникационни функции;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Последователност по стартиране (bootstrapping)}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_2/fig_3.png}
+			\caption{pic. based on \url{https://bootlin.com/doc/legacy/kernel-init/src/} by Bootlin, CC BY-SA 3.0, 2004-2018}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Цели при разработката на ОС}
+\frame {
+	\frametitle{Цели при разработката на ОС}
+	\begin{itemize}
+		\item От страна на \textbf{системните разработчици}:
+		      \begin{itemize}
+			      \item модулна структура и функционално разделяне на отделни специализирани блокове;
+			      \item ясно дефиниране на интерфейса за всеки един от тези блокове;
+			      \item осигуряване на механизми за сигурен обмен на данни;
+			      \item възможности за конфигуриране на системата и гъвкаво надграждане с нови модули;
+			      \item наличие на механизми за мониторинг и отстраняване на дефекти;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Цели при разработката на ОС}
+	\begin{itemize}
+		\item От страна на \textbf{потребителите}:
+		      \begin{itemize}
+			      \item постигане на оптимално оползотворяване на машинните ресурси и максимална производителност;
+			      \item лекота при употреба в процеса на интерактивно взаимодействие;
+			      \item обезпечаване на надеждна и сигурна работа с минимум проявяващи се дефекти;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Политика и механизъм}
+	\begin{itemize}
+		\item \textbf{Политика}
+		      \begin{itemize}
+			      \item указва как се изменя и адаптира поведението на съставните блокове;
+		      \end{itemize}
+		\item \textbf{Механизъм}
+		      \begin{itemize}
+			      \item описва как се реализира дадената цел или политика (визира се програмното описание)
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Разновидности ОС}
+\frame {
+	\frametitle{Разновидности ОС: Компактни}
+	\begin{itemize}
+		\item Характеристики:
+		      \begin{itemize}
+			      \item характеризират се с резидентен управляващ процес;
+			      \item притежават тясно специализирана логика;
+			      \item разполагат с фиксиран набор механизми на контрол;
+			      \item често пъти липсва и възможност за многозадачна и многопотребителска работа
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Компактни ОС: организация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_2/fig_4.png}
+			\caption{pic. inspired by \url{http://en.wikipedia.org/wiki/Image:OS-structure.svg} by Golftheman}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Разновидности ОС: Монолитни}
+	\begin{itemize}
+		\item Характеристики:
+		      \begin{itemize}
+			      \item работят в привилегирован режим на процесора и поемат подсигуряването на всички системни функции;
+			      \item достъпът от страна на приложенията до така предоставяните услуги става чрез подробно описан системен интерфейс и библиотеки-посредници. Чрез последните приложенията могат да отправят заявките си под формата на системни извиквания, които ОС обработва;
+			      \item приложенията се развиват в отделна област от паметта и не споделят непосредствено адресно пространство с процесите на операционната система;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Монолитни ОС: организация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_2/fig_5.png}
+			\caption{pic. inspired by \url{http://en.wikipedia.org/wiki/Image:OS-structure.svg} by Golftheman}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Разновидности ОС: С микроядро}
+	\begin{itemize}
+		\item Характеристики:
+		      \begin{itemize}
+			      \item на микроядрото е поверено само обслужването на най-важните системни функции като управление на паметта, менажиране на процеси и междупроцесна комуникация;
+			      \item останалите подсистеми на ОС, включително драйверите за обслужване на периферията, са изнесени извън ядрото под формата на отделни потребителски процеси, които общуват, като разменят съобщения помежду си;
+			      \item отработването на потребителските заявки става посредством непрекъсната размяна на съобщения и обикновено това може да се окаже тясно място в оценката на производителността;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{ОС с микроядро: организация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_2/fig_6.png}
+			\caption{pic. inspired by \url{http://en.wikipedia.org/wiki/Image:OS-structure.svg} by Golftheman}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Структура на Линукс ядрото}
+\begin{frame}[fragile]
+	\frametitle{Структура на Линукс ядрото}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_2/fig_7.png}
+			\caption{pic. by ScotXW, CC BY-SA 4.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Структура на Линукс ядрото}
+	\begin{itemize}
+		\item Основни подсистеми:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{интерфейсът на системните извиквания} (SCI) - играе ролята на посредник в комуникацията с приложенията. Той спомага за предоставяне на достъп на приложенията до услугите на ОС;
+			      \item \textbf{диспечерът на процеси} - той е отговорен за изпълнението на системните задачи и процесите, представящи потребителски задания;
+			      \item \textbf{подсистема за управление на паметта} - често пъти обвързана с концепцията за виртуална памет и нейното динамично управление;
+			      \item \textbf{мрежова подсистема} - обезпечава функции по транспорт и обмяна на съобщения посредством мрежови комуникационни интерфейси;
+			      \item \textbf{файлова подсистема} - грижи се както за детекция и управление на блоково-ориентирани входно-изходни устройства, така и за форматирането на заявките за работа с файлови структури;
+			      \item \textbf{архитектурна и платформена подсистема} - подсигурява машинна поддръжка за дадена процесорна архитектура;
+			      \item \textbf{колекция периферни и платформени драйвери} - грижат се за управлението на хардуерната част на ниско ниво и взаимодействието с различни физически устройства
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Практическа секция - GNU Make}
+\begin{frame}[fragile]
+	\frametitle{Практическа секция: Първи стъпки с GNU Make}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_2/fig_8.png}
+			\caption{pic. based on public GNU Make documentation}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Как е организирано изграждането на софтуерни проекти?}
+	\begin{itemize}
+		\item Детайлно описание на:
+		      \begin{itemize}
+			      \item списъка от файлове, които представляват изходния код на един софтуерен проект;
+			      \item групирането на тези файлове в поддиректории и логическата йерархия помежду им;
+			      \item условни зависимости и параметри, повлияващи изходния резултат;
+			      \item указване на инструментите, които участват в процедурата по изграждане на проекта и съпътстващите управляващи настройки на средата
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Характеристики на GNU Make}
+	\begin{itemize}
+		\item \textbf{C приложение}, което:
+		      \begin{itemize}
+			      \item прочита, обработва и изпълнява набор от команди, разкриващи структурата на един проект и стъпките по генерирането на изпълним код;
+			      \item е способно да проследява изменения в изходния код;
+			      \item изпълнява само тези последователности от операции, които имат връзка с направените изменения;
+			      \item разчита на декларативен макро подобен скриптов език за описание на управляващите обработки
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{GNU Make: синтаксис}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \item използва се \textbf{декларативен език}, чрез който се описват поредица от задачи;
+			      \item всяка задача е представена чрез посочване на текстови идентификатор, наречен \textbf{цел (target)} и списък от \textbf{зависимости (подзадачи)};
+			      \item операциите, които обозначават дадена задача, се изреждат под формата на поредица от текстови команди непосредствено след посочване на целта;
+			      \item съставните операции в рамките на една задача се разграничават синтактично с помощта на символ за табулация
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Нашият първи Makefile}
+
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_1.mak}
+	\end{msource}
+\end{frame}
+
+\frame {
+	\frametitle{GNU Make: механика на парсване}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \item парсването е организирано на \textbf{два етапа};
+			      \item \textbf{първата фаза} включва обработка на изразите, присвоявани на променливи и разчитане на задачите;
+			      \item резултат от тази първа фаза е \textbf{граф на зависимостите};
+			      \item \textbf{втората фаза} използва междинните вътрешни данни от предходната, за да определи кои задачи и съставни операции да бъдат изпълнени
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{GNU Make: изпълнение}
+	\begin{itemize}
+		\item Същност на механизма:
+		      \begin{enumerate}
+			      \item \textbf{парсване} съгласно описания ред;
+			      \item \textbf{изпълнение} на задачите според графа на зависимостите;
+			      \item за всяка операция на отделен ред в рамките на задача се стартира нова инстанция на командния интерпретатор (shell);
+			      \item разширяване на зависимите стойности за динамично определяни променливи в процеса на изпълнение;
+		      \end{enumerate}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{GNU Make: грешки по време на изпълнение}
+	\begin{itemize}
+		\item Подход:
+		      \begin{itemize}
+			      \item при наличие на грешка изпълнението на текущата задача се прекъсва;
+			      \item при наличие на грешка, ако не е указано друго за конкретна операция, \textbf{make преустановява изпълнението} на останалите неизпълнени задачи и връща код за грешка;
+			      \item ако резултатът от дадена съставна операция не е определящ, евентуална грешка може да се игнорира чрез "\textbf{-}" в началото на ред
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{GNU Make: синтаксис}
+	\begin{itemize}
+		\item Основни типове задачи:
+		      \begin{itemize}
+			      \item такива, пряко свързани с наличието на сорс файлове;
+			      \item процедурни, при които не е необходимо да се посочват зависими файлове .PHONY;
+			      \item задачи по подразбиране .DEFAULT\_GOAL
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Нека да добавим още задачи}
+
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_2.mak}
+	\end{msource}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Избор на задача по подразбиране}
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_3.mak}
+	\end{msource}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Първи Makefile за компилиране на C програма}
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_6.mak}
+	\end{msource}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А има ли начин да сме по-ефикасни?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{GNU Make: синтаксис}
+	\begin{itemize}
+		\item \textbf{Променливи}:
+		      \begin{itemize}
+			      \item рекурсивно представяни \textbf{CC = gcc};
+			      \item такива, при които рекурсивни референции са забранени \textbf{CC := gcc}
+		      \end{itemize}
+		\item \textbf{Някои специални такива}:
+		      \begin{itemize}
+						\item \textbf{CC}: указва програма за компилиране;
+						\item \textbf{CFALGS}: указва флагове, ползвани при компилация;
+						\item \textbf{LIBS}: обозначава свързани библиотечни референции;
+			      \item \textbf{\$@}: обозначава обекта отляво на \textbf{:} в едно правило;
+			      \item \textbf{\$\textless}: обозначава първия елемент от списъка със зависимости отдясно на \textbf{:} в едно правило;
+			      \item \textbf{\$\textasciicircum}: обозначана всички елементи в списъка със зависимости
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Примерен Makefile с променливи}
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_7.mak}
+	\end{msource}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{По-сложен пример за компилиране на C програма}
+
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_4.mak}
+	\end{msource}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Компилиране на C програма: продължение}
+
+	\begin{msource}
+		\lstinputlisting{listings/lec_2/lst_5.mak}
+	\end{msource}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{GNU Make}
+	\begin{center}
+		\textbf{Това са само начални напътствия. Има още много възможности и функционалност, описана в документацията.}
+	\end{center}
+\end{frame}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://en.wikipedia.org/wiki/Bootstrapping}
+		\item \url{https://en.wikipedia.org/wiki/CPU_modes}
+		\item \url{https://en.wikipedia.org/wiki/System_on_a_chip}
+		\item \url{https://en.wikipedia.org/wiki/Separation_of_mechanism_and_policy}
+		\item \url{https://en.wikipedia.org/wiki/Monolithic_kernel}
+		\item \url{https://en.wikipedia.org/wiki/Microkernel}
+		\item \url{https://en.wikipedia.org/wiki/Linux_kernel}
+		\item \url{https://en.wikipedia.org/wiki/System_call}
+		\item \url{https://www.gnu.org/software/make/manual/}
+		\item \url{https://www.cs.colby.edu/maxwell/courses/tutorials/maketutor/}
+		\item \url{https://search.creativecommons.org/}
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+
