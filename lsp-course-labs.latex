@@ -210,6 +210,7 @@ drwxr-xr-x
 \begin{frame}[fragile]
   \frametitle{ Многозадачност с Unix Shell }
   \begin{itemize}
+    \item Задачи в обвивката (shell) и процеси в OS.
     \item \verb|bg|, \verb|fg|, \verb|&|, \verb|wait|
     \item \verb|Ctrl+Z| vs \verb|Ctrl+C|
     \item \verb|jobs|
@@ -218,24 +219,83 @@ drwxr-xr-x
 \end{frame}
 
 \begin{frame}[fragile]
+  \frametitle{ Задачи }
+  \begin{itemize}
+    \item Изпробвайте приспиването на задачи, и поставянето им във фонов режим. 
+    \begin{itemize}
+      \item Съвет: Ако не се сещате за други опитни зайчета, ползвайте \verb|cat| и \verb|top|.
+    \end{itemize}
+    \item Кой е номерът на задачата, и кой е номерът на процеса (PID)?
+    \item Изпробвайте \verb|wait| с помощта на няколко \verb|sleep 10 &| задачи.
+    \item Убийте един от вашите процеси. Как ще проверите дали е "мъртъв"?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
   \frametitle{ Тръби }
   \begin{itemize}
     \item Pipes.
     \item stderr, stdout, stdin.
-    \item пренасочване чрез \verb|>|, \verb|>>|, \verb|1>|, ...
+    \item пренасочване чрез \verb|>|, \verb|>>|, \verb|1>|, \verb|2>|
     \item \verb|tee|
-    \item \verb|dd|
-    \item Филтри: \verb|sort|, \verb|wc|, \verb|cut|, \verb|xxd|
+    \item Филтри: \verb|grep|, \verb|sort|, \verb|wc|, \verb|cut|, \verb|xxd|
   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Тръби - примери}
+	Изпробвайте ги при вас!
+\begin{lstlisting}
+$ echo "Hello, world"
+$ echo "Hello, world 1" > test.log
+$ echo "Hello, world 2" > test.log
+$ echo "Hello, world 3" >> test.log
+$ echo "Aloha!" >> test.log
+$ cat test.log
+$ cat test.log | sort
+$ cat test.log | xxd
+$ cat /bin/ls |  xxd | head -10 | tee A.log
+$ cat A.log | cut -f2- -d":"
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Тръби - примери}
+	Изпробвайте ги при вас!
+\begin{lstlisting}
+$ ls /bin | grep sh
+$ ls /bin | grep sh | sort
+$ ls /bin | sort > listing
+$ cat listing
+$ ls /epa-nema-takava-direktoria | sort > listing
+$ cat listing
+$ ls /epa-nema-takava-direktoria 2> listing
+$ cat listing
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{ Всичко е файл! }
   \begin{itemize}
-    \item \verb|/dev| -> Диск? Сериен порт? Температурен датчик?
-    \item \verb|/proc|
-    \item \verb|/sys|
+    \item \verb|/dev| : Device filesystem.
+    \item \verb|/proc| : Process filesystem.
+    \item \verb|/sys| : System filesystem.
     \item Даже и тръбите: \verb|mkfifo|
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Разузнайте \verb|dev|, \verb|/proc| и \verb|/sys|.
+    \begin{itemize}
+      \item Съвет: Припомнете си командите от предното упражнение: \verb|ls|, \verb|ls -l|, \verb|cd|, \verb|pwd|
+      \item Съвет: За списък на всички файлове: \verb|find . -type f|
+      \item Съвет: За търсене по част от име на файл: \verb|find /sys -name "*temp*"|
+      \item Съвет: За търсене по име на файл: \verb|find /sys -name "temp"|
+    \end{itemize}
+    \item Дали \verb|cat| работи с тези файлове?
+    \item Какви са странните директории наименувани с числа в \verb|/proc| ?
   \end{itemize}
 \end{frame}
 
@@ -243,7 +303,7 @@ drwxr-xr-x
   \frametitle{ Задача }
   Напишете скрипт, който да разпечатва на екрана първите 160 байта от даден файл в HEX формат.
 
-  Съвет: Ползвайте \verb|man dd|, \verb|man xxd|, \verb|head|
+  Съвет: Ползвайте \verb|man xxd|, \verb|head|
 \end{frame}
 
 \subsection { Елементарни автоматизации с Unix Shell. }
@@ -251,8 +311,9 @@ drwxr-xr-x
 \begin{frame}[fragile]
   \frametitle{ Shell scripts }
   \begin{itemize}
-    \item входни параметри.
-    \item TODO
+    \item Входни параметри - \verb|$#|, \verb|$@|, \verb|$0|, \verb|$1|, ...
+    \item Unix SH е сложен език с много възможности ..... които няма да разглеждаме на тези упражнения. 
+    \item За допълнително четене: https://linuxcommand.org/tlcl.php
   \end{itemize}
 \end{frame}
 
@@ -264,13 +325,75 @@ drwxr-xr-x
   \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  Направете си система за мониторинг на потребителите, които ползват вашата система. Нека всяка минута да се добавя текстова информация в \verb|$HOME/users.log| с информация за датата, и кои потребители ползват системата.
+
+  \begin{itemize}
+    \item Съвет: Ползвайте \verb|w| за списък на потребителите.
+    \item Съвет: Ползвайте \verb|date| за датата.
+  \end{itemize}
+\end{frame}
+
 \section { Първа Линукс програма }
-\subsection { Компилатори. Крос-компилатори. Фази на компилацията. ELF/HEX/контейнери. }
+\subsection { Компилатори. Крос-компилатори. Фази на компилацията. ELF контейнери. }
 
 \begin{frame}[fragile]
   \frametitle{ Компилатори }
   \begin{itemize}
-    \item TODO.
+    \item GCC vs clang
+    \item Крос компилатори - host vs target.
+    \item \verb|man gcc|
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Фази }
+  \begin{itemize}
+    \item Препроцесор.
+      \begin{itemize}
+        \item Изход: С код
+      \end{itemize}
+    \item С компилатор.
+      \begin{itemize}
+        \item Изход: асемблерен код
+      \end{itemize}
+    \item Асемблер.
+      \begin{itemize}
+        \item Изход: обектен файл (ELF object).
+      \end{itemize}
+    \item Свързващ редактор (linker).
+      \begin{itemize}
+        \item Изход: ELF executable.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GCC - опции }
+  \begin{itemize}
+    \item \verb|-o OUTFILE| : в кой файл да се запише изхода.
+    \item \verb|-Os|, \verb|-O0|, ... \verb|-O3| : ниво на оптимизация.
+    \item \verb|-c| : да се компилира и асемблира, без свързване.
+    \item \verb|-g| : да се добави debug информация.
+    \item \verb|-Wall -Wextra| : да се предупреждава при съмнителен код.
+    \item \verb|-Werror| : да се излиза с грешка при съмнителен код.
+  \end{itemize}
+  Пример:
+\begin{lstlisting}
+$ gcc -O2 -Wall -Wextra test.c -o test
+$ file test
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Напишете C програма за събиране на две числа, подадени от командния ред.
+    \item Програмата да е разделена в два C файла - за \verb|main()| и \verb|calc_sum()| функциите.
+    \item Да има header с декларация на \verb|calc_sum()|
+    \item Напишете скрипт, който компилира програмата.
+    \item За по-напредналите: \verb@objdump -d calc.elf | less@
   \end{itemize}
 \end{frame}
 
@@ -280,7 +403,28 @@ drwxr-xr-x
 \begin{frame}[fragile]
   \frametitle{ GNU Make }
   \begin{itemize}
-    \item TODO.
+    \item GNU Make има множество алтернативи, но въпреки това е все още популярна.
+    \item Позволява огромен контрол върху процеса на построяване (build).
+    \item Правилно описани правила за построяване позволяват:
+      \begin{itemize}
+        \item Автоматично разпаралелване.
+	\item Бързи и сигурни надстроявания (incremental builds).
+      \end{itemize}
+  \end{itemize}
+  Запомнете:
+\begin{lstlisting}
+# This is a comment.
+target: dependencies
+	commands
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Напишете \verb|Makefile| за C програмата от предишното упражнение.
+    \item За по-напредналите: Опитайте да направите своя \verb|Makefile| по-универсален посредством променливи.
+    \item За по-напредналите: Проследете exit code при успешно и при неуспешно построяване. Ползвайте специалната променлива на \verb|sh| - \verb|$?| .
   \end{itemize}
 \end{frame}
 
@@ -290,6 +434,25 @@ drwxr-xr-x
   \frametitle{ GIT }
   \begin{itemize}
     \item TODO.
+  \end{itemize}
+\begin{lstlisting}
+$ git init
+$ git clone https://github.com/MM-Solutions/lsp-course
+$ git add *
+$ git commit
+$ git push
+$ git log
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Регистрирайте се в \url{github.com}, или \url{gitlab.com}, или \url{bitbucket.org}, или подобен.
+    \item Направете си публично ГИТ хранилище (GIT project, GIT repo) с име "c-hello-world".
+    \item Добавете С задачата от предишното упражнение към новото ГИТ хранилище, и я публикувайте.
+    \item Добавете README.md с кратко описание, и го публикувайте като отделен GIT commit.
+    \item За по-напредналите: свалете голям проект (например \url{https://github.com/torvalds/linux}), и изследвайте историята. Изпробвайте командата \verb|gitk|.
   \end{itemize}
 \end{frame}
 
