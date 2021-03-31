@@ -45,7 +45,7 @@
   \def\svgwidth{5cm}
   \input{./images/Logo_MMS_svg.pdf_tex}
 }
-\date{01.04.2021}
+\date{07.04.2021}
 
 
 \begin{document}
@@ -300,10 +300,22 @@ $ cat listing
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{ Задача }
-  Напишете скрипт, който да разпечатва на екрана първите 160 байта от даден файл в HEX формат.
+  \frametitle{ Задача - продължение}
+  \begin{itemize}
+    \item \verb|cat /proc/interrupts|
+    \item \verb|cat /proc/cpuinfo|
+    \item \verb|cat /proc/version|
+    \item \verb|ls /proc/sys/kernel/|
+    \item \verb|cat /sys/class/backlight/*/brightness|
+    \item \verb|cat /sys/class/leds/*/brightness|
+  \end{itemize}
+\end{frame}
 
-  Съвет: Ползвайте \verb|man xxd|, \verb|head|
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  Напишете скрипт, който да разпечатва броя процесори в системата.
+
+  Съвет: Ползвайте \verb|grep|, \verb|wc -l|
 \end{frame}
 
 \subsection { Елементарни автоматизации с Unix Shell. }
@@ -313,7 +325,7 @@ $ cat listing
   \begin{itemize}
     \item Входни параметри - \verb|$#|, \verb|$@|, \verb|$0|, \verb|$1|, ...
     \item Unix SH е сложен език с много възможности ..... които няма да разглеждаме на тези упражнения. 
-    \item За допълнително четене: https://linuxcommand.org/tlcl.php
+    \item За допълнително четене: \url{https://linuxcommand.org/tlcl.php}
   \end{itemize}
 \end{frame}
 
@@ -327,16 +339,17 @@ $ cat listing
 
 \begin{frame}[fragile]
   \frametitle{ Задача }
-  Направете си система за мониторинг на потребителите, които ползват вашата система. Нека всяка минута да се добавя текстова информация в \verb|$HOME/users.log| с информация за датата, и кои потребители ползват системата.
+  Направете си система за мониторинг на потребителите, които ползват Вашата система. Нека всяка минута да се добавят записи в \verb|$HOME/users.log| с информация за датата, и кои потребители ползват системата.
 
   \begin{itemize}
     \item Съвет: Ползвайте \verb|w| за списък на потребителите.
     \item Съвет: Ползвайте \verb|date| за датата.
+    \item За напреднали: Филтрирайте така, че имената на потребителите да се показват само по един път.
   \end{itemize}
 \end{frame}
 
 \section { Първа Линукс програма }
-\subsection { Компилатори. Крос-компилатори. Фази на компилацията. ELF контейнери. }
+\subsection { Компилатори. Фази на компилацията. ELF контейнери. }
 
 \begin{frame}[fragile]
   \frametitle{ Компилатори }
@@ -394,6 +407,7 @@ $ file test
     \item Да има header с декларация на \verb|calc_sum()|
     \item Напишете скрипт, който компилира програмата.
     \item За по-напредналите: \verb@objdump -d calc.elf | less@
+    \item За по-напредналите: \verb@file calc.elf@ - защо е маркиран като \verb|dynamically linked|? Ще се промени ли нещо, ако се ползва \verb|-static| флаг на компилатора и свързващия редактор?
   \end{itemize}
 \end{frame}
 
@@ -404,16 +418,27 @@ $ file test
   \frametitle{ GNU Make }
   \begin{itemize}
     \item GNU Make има множество алтернативи, но въпреки това е все още популярна.
-    \item Позволява огромен контрол върху процеса на построяване (build).
+    \item Позволява фин контрол върху процеса на построяване (build).
+      \begin{itemize}
+        \item Това обаче може и да се окаже недостатък, защото писането на GNU Make правила изисква задълбочено познание за почти всяка стъпка от построяването.
+	\item По-съвременните системи за построяване обикновено включват голям набор готови правила.
+      \end{itemize}
     \item Правилно описани правила за построяване позволяват:
       \begin{itemize}
         \item Автоматично разпаралелване.
 	\item Бързи и сигурни надстроявания (incremental builds).
       \end{itemize}
   \end{itemize}
-  Запомнете:
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GNU Make синтаксис }
+  \begin{itemize}
+   \item Запомнете:
+  \end{itemize}
 \begin{lstlisting}
 # This is a comment.
+
 target: dependencies
 	commands
 \end{lstlisting}
@@ -433,15 +458,52 @@ target: dependencies
 \begin{frame}[fragile]
   \frametitle{ GIT }
   \begin{itemize}
-    \item TODO.
+    \item Най-популярната система за контрол на версиите.
+    \item Масово използвана за софтуер.
+    \item Но може да се ползва и за други цифрови проекти:
+      \begin{itemize}
+         \item Документация (като тази презентация).
+         \item Проекти за електронни схеми и платки.
+         \item Проекти за механични изделия.
+      \end{itemize}
+    \item Оптимизирана да работи с текст, но се справя и с двоични файлове.
+    \item Други подобни системи: hg, svn, bazaar, cvs.
   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GIT сървъри}
+  \begin{itemize}
+    \item GIT може пълноценно да работи без сървър, само с локален проект.
+      \begin{itemize}
+         \item Всяко GIT дърво съдържа цялата история на проекта.
+      \end{itemize}
+    \item Сървърът позволява обаче да споделяте кода си с други хора.
+    \item Съществуват безплатни сървъри, на които да публикувате проектите си.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GIT - цели }
+  \begin{itemize}
+    \item Управление на версиите.
+    \item Проследяемост.
+    \item Паралелна работа на множество разработчици.
+    \item Пълноценност без свързаност към интернет.
+    \item Гъвкавост при издаване (release flow).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GIT команди}
 \begin{lstlisting}
-$ git init
+$ mkdir my-empty-repo ; cd my-empty-repo ; git init
 $ git clone https://github.com/MM-Solutions/lsp-course
 $ git add *
 $ git commit
 $ git push
 $ git log
+$ gitk
 \end{lstlisting}
 \end{frame}
 
@@ -499,6 +561,16 @@ $ git log
   \frametitle{ Стандартни интерфейси към периферията }
   \begin{itemize}
     \item TODO.
+  \end{itemize}
+\end{frame}
+
+\section { Допълнителни Материали }
+\begin{frame}[fragile]
+  \frametitle{ Други курсове }
+  \begin{itemize}
+    \item \url{https://man7.org/training/download/Linux_System_Programming-man7.org-mkerrisk-NDC-TechTown-2020.pdf}
+    \item \url{https://bootlin.com/training/}
+    \item \url{https://github.com/e-ale}
   \end{itemize}
 \end{frame}
 
