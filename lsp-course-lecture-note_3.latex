@@ -1,0 +1,741 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={C},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Системни извиквания. Етапи при създаване на изпълнима програма.}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{07.04.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да поясни:
+		      \begin{itemize}
+			      \item какво се крие зад абревиатурите ISA, API, ABI;
+			      \item как приложенията се възползват от услугите на ОС;
+			      \item какво представляват системните извиквания;
+			      \item какво е процес и как се дефинира;
+			      \item какви са етапите при създаване на изпълнима C програма;
+			      \item как се представя изпълнимата програма в паметта;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Въведение}
+	\begin{itemize}
+		\item \textbf{Основни функции} на ОС - предоставяне на:
+		      \begin{itemize}
+			      \item средства за заделяне и управление на системни ресурси;
+			      \item среда за изпълнение на потребителски задания (процеси);
+			      \item инструменти за подсигураване комуникация - както между изпълняваните процеси, така и между свързани в мрежа компютърни системи;
+			      \item механизми за интерактивно взаимодействие с потребителите (текстови команден интерпретатор или чрез графичен интерфейс)
+			      \item механизми за защита интегритета на потребителските данни;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Какво е ISA, API и ABI}
+\frame {
+	\frametitle{Какво е \textbf{ISA}?}
+	\begin{itemize}
+		\item \textbf{Спецификация}, която:
+		      \begin{itemize}
+			      \item представя набора от инструкции и абстрактния модел на изчисление за дадена компютърна архитектура;
+			      \item имплементацията на всяка такава спецификация е конкретен вид микропроцесор (CPU);
+		      \end{itemize}
+		\item \textbf{Наборът от инструкции} показва:
+		      \begin{itemize}
+			      \item какви процесорни регистри са налични;
+			      \item какви са машинните команди и типовете данни;
+			      \item как се изгражда моделът на паметта и какви са режимите за адресация;
+			      \item как е организирана обработката на прекъсванията и др.
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Опростена блокова структура на микропроцесор}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_6.png}
+			\caption{pic. by Lambtron , CC BY-SA 4.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Какво е \textbf{API}?}
+	\begin{itemize}
+		\item \textbf{Интерфейс}, чрез който:
+		      \begin{itemize}
+			      \item разработчикът се възползва от предоставен набор функции в процеса на създаване на приложение с помощта на език от високо ниво;
+			      \item реализацията на тези функции остава скрита, като тя може да е поверена на съставни блокове от самата ОС или да е пакетирана под формата на системни библиотеки посредници;
+		      \end{itemize}
+		      API включва само описание на прототипа на наличните функции заедно с броя и формата на формалните параметри и типа на връщания резултат.
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Какво е \textbf{ABI}?}
+	\begin{itemize}
+		\item \textbf{Конвенция}, която показва:
+		      \begin{itemize}
+			      \item как структурите от данни и/или машинните подпрограми в контекста на дадена процесорна микроархитектура се достъпват на ниско ниво;
+		      \end{itemize}
+		\item Този интерфейс дефинира още и:
+		      \begin{itemize}
+			      \item как са организирани самите изчисления;
+			      \item как се форматират входните и изходните данни (предавани аргументи);
+			      \item как става представянето на данните в регистрите на процесора или паметта;
+			      \item какъв е редът на разполагане на данните и др.
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Режими на работа на микропроцесора}
+\frame {
+	\frametitle{Основни режими на работа на микропроцесора}
+	\begin{itemize}
+		\item \textbf{Привилегирован (supervisor)} Разрешени са:
+		      \begin{itemize}
+			      \item изпълнението на пълния набор от процесорни инструкции;
+			      \item достъпът до системните шини и периферни устройства, като е възможен и невъзпрепятстван достъп до цялата наличната физическа памет;
+			      \item прецизно управление на обслужването на хардуерните прекъсвания и/или тяхното динамично забраняване или разрешаване
+		      \end{itemize}
+		      Това е основният режим, в който ОС работи с процесора.
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Основни режими на работа на микропроцесора}
+	\begin{itemize}
+		\item \textbf{Потребителски (user)}
+		      \begin{itemize}
+			      \item прилагат се принципите на изолация на изпълняваните задачи чрез поставянето им в отделени един от друг и защитени региони от адресното пространство на паметта;
+			      \item избягва се непосредствена работа с физически адреси;
+			      \item въвежда се логическо обособяване на виртуални региони от паметта, които са под контрола на обособен транслиращ хардуер - мениджър на виртуална памет (MMU);
+			      \item директният достъп до паметта или до определено системно устройство са забранени;
+			      \item не всички управляващи инструкции и регистрови структури на процесора са активни
+		      \end{itemize}
+		      В този режим се изпълняват потребителските процеси или задания.
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Пример за разслояване на поддържаните режими}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_1.png}
+			\caption{pic. by Hertzsprung, CC BY-SA 3.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Интерфейс на системните извиквания}
+\frame {
+	\frametitle{Интерфейс на системните извиквания}
+	\begin{itemize}
+		\item \textbf{Същност}:
+		      \begin{itemize}
+			      \item \textbf{набор от подпрограми на една ОС}, чрез които тя предоставя своите услуги на потребителските задания съобразно конкретиките на всяка микроархитектура;
+			      \item съществува силна корелация между множеството от функции, което изгражда един приложен програмен интерфейс (API) и набора от асоциираните системни функции или извиквания;
+			      \item \textbf{корелацията} е представена посредством пакет от системни библиотеки, които се предоставят като част от инструментите за разработка на даден програмен език, включващи: \textbf{компилатор}, \textbf{свързващ редактор} и \textbf{зареждаща програма}
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Механика на системните извиквания}
+	\begin{itemize}
+		\item \textbf{Изпълнението} на системните извиквания обикновено се съпътства:
+		      \begin{itemize}
+			      \item с \textbf{превключване} на режима на работа на процесора;
+			      \item изпълнение на поредица подпрограми на ОС в привилегирован режим от името на извикващия процес;
+			      \item връщане на резултат от обработката чрез повторно превключване в потребителски режим на работа
+		      \end{itemize}
+		      Не е задължително това превключване да стане веднага с извикването на помощната библиотечна функция - това се случва по платформено зависим начин след предаване контрол върху процесите на операционната система.\\
+		      Прибягва се до т.нар. механизъм на \textbf{софтуерни прекъсвания} или специализирани инструкции, които тригерират събитие по софтуерно прекъсване на работата на процесора и \textbf{превключване на контекста}.
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Процедура по системно извикване - илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.7\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_5.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/System_call}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на системните извиквания в Линукс}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_4.png}
+			\caption{pic. based on work by Shmuel Csaba Otto Traian, CC BY-SA 4.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Категории системни извиквания}
+	\begin{itemize}
+		\item Групи в контекста на Линукс ядрото:
+		      \begin{itemize}
+			      \item създаване и управление на потребителски процеси: \textbf{fork}, \textbf{execv}, \textbf{kill}, \textbf{exit} и др.;
+			      \item работа с файлове, файлови атрибути и файлови дескриптори: \textbf{open}, \textbf{read}, \textbf{write}, \textbf{lseek}, \textbf{close} и др.;
+			      \item заявяване и освобождаване на системни устройства и управление на устройствени атрибути: \textbf{read}, \textbf{write}, \textbf{ioctl};
+			      \item поддържащи функции и средства за контрол върху поведението на системата: \textbf{sched\_get\_affinity}, \textbf{sched\_setaffinity}, \textbf{getpid} и др.;
+			      \item комуникация между процеси и системи: \textbf{pipe}, \textbf{mmap}, \textbf{socket} и др.;
+			      \item механизми за защита на достъпа и задаване на правомощия: \textbf{chmod}, \textbf{chown}, \textbf{umask} и др.
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Практически пример: проследяване на системните извиквания}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_3/lst_7.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\section{Етапи по създаване на изпълнима програма}
+\frame {
+	\frametitle{Процедура по създаване на изпълнима C програма}
+	\begin{itemize}
+		\item Фази, илюстриращи процеса:
+		      \begin{enumerate}
+			      \item \textbf{създаване} и редактиране на изходния код на програмата;
+			      \item \textbf{компилиране}, при което текстовото описание се преобразува до последователност от машинни инструкции съгласно конвенцията на приложния бинарен интерфейс (ABI);
+			      \item \textbf{асемблиране и свързване}, което има за цел да разчете символните таблици и разреши правилно крос-реферирането на даннови структури в колекцията от обединявани обектни файлове. Свързването бива статично или динамично.
+		      \end{enumerate}
+		      Резултатът довежда до създаване на машинно съвместим изпълним файл. Той обаче е пасивен обект, представящ списък от инструкции с определено предназначение, съхранени на външен носител.
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма, илюстрираща процедурата}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_9.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Compiler}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Защо няма да коментираме тези фази детайлно сега?}
+	\begin{itemize}
+		\item \textcolor{red}{Парсване} и \textcolor{red}{Компилиране}, защото:
+		      \begin{itemize}
+			      \item изискват специализирани познания от дисциплини като \textbf{дискретна математика}, \textbf{информатика}, \textbf{създаване на програмни среди} и \textbf{технология на програмирането};
+		      \end{itemize}
+		\item \textcolor{green}{Асемблиране и свързване}, защото:
+		      \begin{itemize}
+			      \item предполагат познания за това как се разпределя и управлява \textbf{адресното пространство} на паметта и какви механизми за работа с \textbf{виртуална памет} съществуват;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Дефиниция на процес}
+\frame {
+	\frametitle{Дефиниция на процес}
+	\begin{itemize}
+		\item Представлява \textbf{програма в етап на изпълнение}. Дефиницията включва:
+		      \begin{itemize}
+			      \item съвкупността от региони виртуална памет, в които се изобразява съдържанието на изпълнимия файл;
+			      \item атрибути и ресурси, които ОС назначава, за да диспечерира изпълнението на програмата във времето;
+			      \item наборът от използваните процесорни регистри, тяхното състояние и съдържание във времето, а също и ползвания режим на адресиране на физическата памет;
+			      \item йерархия от производни подпроцеси или подзадачи, ако процесът създава или е създал такива
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Състояния на един процес}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_2.png}
+			\caption{pic. by A3r0 assumed, Public Domain via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Състояния на процес}
+	\begin{itemize}
+		\item Обособяват се типично:
+		      \begin{itemize}
+			      \item \textbf{новосъздаден} - след зареждане на изпълнимия файл в паметта и преди изпълнение на машинни инструкции;
+			      \item \textbf{чакащ изпълнение} - в очакване на разрешение за изпълнение от страна на диспечера;
+			      \item \textbf{изпълняващ се} - в етап на изпълнение на последователността от машинни инструкции;
+			      \item \textbf{блокиран} - при заявка на достъп до физическо устройство или обмен на данни с друг процес. Управлението се предава на друга програма и текущият процес преминава в чакащо състояние докато не бъде уведомен от диспечера;
+			      \item \textbf{терминиран} - при завършване на изпълнението или терминиране от страна на ОС;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Представяне на процеса в паметта}
+\begin{frame}[fragile]
+	\frametitle{Опростено представяне на процеса в паметта}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_3.png}
+			\caption{pic. based on work by Surueña, CC BY-SA 3.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Представяне на процес: вътрешно описание}
+	\begin{itemize}
+		\item Най-важни сегменти:
+		      \begin{itemize}
+			      \item \textbf{програмен стек} (stack);
+			      \item сегмент за рефериране на споделени региони от паметта \textbf{mmap};
+			      \item раздел за \textbf{динамично заделяна памет (heap)};
+			      \item \textbf{.bss сегмент} - тук се разполагат неинициализираните глобални и статични променливи;
+			      \item \textbf{.data} или даннов сегмент - тук се пазят инициализираните глобални и статични променливи;
+			      \item \textbf{.text} или текстови сегмент, който отразява последователността от машинни инструкции, които описват логиката на програмата;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Предназначение на програмния стек}
+	\begin{itemize}
+		\item Реализира операции, свързани с:
+		      \begin{itemize}
+			      \item предаване и прочитане на аргументи при извикване на функция;
+			      \item отразяване състоянието и обработката на локални променливи и прочитане на изходния резултат от изпълнението на функция;
+			      \item проследяване на последователността от извиквани функции и техния контекст в динамиката на изпълнение на програмата
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{ELF формат}
+\frame {
+	\frametitle{ELF file format: въведение}
+	Описва пакетирането на програмни задания в изпълним файлов контейнер и изграждане на изпълним образ на процеса в паметта.
+	\begin{itemize}
+		\item Включва в състава си:
+		      \begin{itemize}
+			      \item \textbf{сегменти} - раздели, които указват области от изпълнимия файл, които съдържат необходими за изпълнението на програмата елементи и участват непросредствено в изграждането на изпълним образ на процеса в паметта;
+			      \item \textbf{секции} - подраздели, съставна част от отделните сегменти. Секциите се прочитат и обработват преди и по време на фазата на свързване (linking)
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{ELF file header}
+	\begin{itemize}
+		\item Предназначение:
+		      \begin{itemize}
+			      \item съдържа характеристики метаданни, чрез които идентифицира изпълнимия файл и указва как той се прочита и интерпретира от конкретна машинна архитектура
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{ELF file header}
+	\begin{itemize}
+		\item Някои от най-съществените характеристики са:
+		      \begin{itemize}
+			      \item тип на файла;
+			      \item кодиране на данните в обектния формат;
+			      \item разновидността микропроцесорна архитектура;
+			      \item адреса в паметта на стартовата точка на изпълнение;
+			      \item начало на таблицата със заглавни програмни раздели (program header table);
+			      \item начало на таблицата със заглавни секции на програмата
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{ELF file header: формат}
+	\begin{source}
+		\lstinputlisting{listings/lec_3/lst_5.txt}
+	\end{source}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{ELF file header: идентифициране}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_7.png}
+			\caption{pic. based on \url{https://refspecs.linuxfoundation.org/elf/elf.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Практически пример: прочитане на ELF file header}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_3/lst_1.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\frame {
+	\frametitle{Заглавен програмен раздел (program header)}
+	Служи за дефиниране на всеки един от съставните програмни сегменти.\\
+	Таблицата със заглавни програмни раздели се намира, отместена на \textbf{e\_phoff} спрямо началото на файла и се състои от \textbf{e\_phnum} записа, всеки с размер \textbf{e\_phentsize}.\\
+	Размерът на съставните полета за всеки запис се различава в зависимост от това дали форматът на ELF файла таргетира 32 или 64-битова архитектура.
+}
+
+\frame {
+	\frametitle{Заглавен програмен раздел (program header)}
+	\begin{itemize}
+		\item Някои от най-важните полета са:
+		      \begin{itemize}
+			      \item тип на представяния сегмент;
+			      \item отместване на сегмента в изпълнимия файлов образ;
+			      \item виртуален адрес на сегмента;
+			      \item физически адрес в случаите, когато това е от значение;
+			      \item флагове за достъп - маркиран за четене (PF\_R), запис (PF\_W) или съдържащ изпълними инструкции (PF\_X);
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{ELF program header: формат}
+
+	\begin{source}
+		\lstinputlisting{listings/lec_3/lst_2.txt}
+	\end{source}
+\end{frame}
+
+\frame {
+	\frametitle{ELF program header: типове сегменти}
+	\begin{itemize}
+		\item Пояснение:
+		      \begin{itemize}
+			      \scriptsize {
+			      \item PT\_NULL - неактивен сегмент;
+			      \item PT\_LOAD - зареждаем в паметта сегмент;
+			      \item PT\_DYNAMIC - указва как да се организира зареждането на динамични библиотеки;
+			      \item PT\_INTERP - пази данни за абсолютен път, идентифициращ програмен интерпретатор;
+			      \item PT\_NOTE - съдържа допълнителни спомагателни данни;
+			      \item PT\_SHLIB - резервиран, но с неспецифицирано значение;
+			      \item PT\_PHDR - специфицира локацията и размера на таблицата със заглавни сегменти;
+			      \item PT\_TLS - показва, че сегментът съдържа TLS (thread local storage) данни. Това са статични или глобални променливи в контекста на дадена нишка, а не в контекста на всички системни потоци от задачи. Пример: \textcolor{red}{errno};
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Практически пример: прочитане на програмните сегменти}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_3/lst_3.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\frame {
+	\frametitle{Заглавна част на секция (section header)}
+	Служи за дефиниране на всяка една от съставните секции.\\
+	Разделите са подредени в масив, наречен таблица със заглавни части на секциите.
+}
+
+\frame {
+	\frametitle{Заглавна част на секция (section header)}
+	\begin{itemize}
+		\item Някои от най-важните полета са:
+		      \begin{itemize}
+			      \item име на секцията - офсет в таблицата със символни низове;
+			      \item тип на секцията;
+			      \item флагове за достъп;
+			      \item адрес, на който секцията се изобразява в образа на процеса в паметта, ако съдържанието е част от зареждаем сегмент;
+			      \item офсет - локацията на данните в ELF файла;
+			      \item индекс на асоциирана секция;
+			      \item допълнителна информация;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{ELF section header: формат}
+	\begin{source}
+		\lstinputlisting{listings/lec_3/lst_4.txt}
+	\end{source}
+\end{frame}
+
+\frame {
+	\frametitle{ELF section header: типове секции}
+	\begin{itemize}
+		\item Пояснение:
+		      \begin{itemize}
+			      \scriptsize {
+			      \item SHT\_NULL - неидентифицирана секция;
+			      \item SHT\_PROGBITS - данни или код за програмата;
+			      \item SHT\_SYMTAB - таблица със структури, дефинираща използвани символи;
+			      \item SHT\_STRTAB - таблица със символни низове;
+			      \item SHT\_RELA - показва как се модифицират различните секции при асемблиране;
+			      \item SHT\_HASH - хеш таблица на символите;
+			      \item SHT\_DYNAMIC - данни при динамично свързване и рефериране на библиотечни функции;
+			      \item SHT\_NOTE - спомагателни данни от разнороден характер;
+			      \item SHT\_NOBITS - секция с неинциализирани променливи;
+			      \item SHT\_REL - показва как се модифицират различните секции при асемблиране;
+			      \item SHT\_SHLIB - резервирана, но с неспецифирано приложение;
+			      \item SHT\_DYNSYM - таблица със структури, обозначаваща динамично реферирани символи, обработвани от свързващия редактор;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Практически пример: прочитане на програмните секции}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_3/lst_6.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{ELF file: обобщение - третиране на сегменти и секции}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_3/fig_8.png}
+			\caption{pic. based on \url{https://www.keil.com/support/man/docs/armlink/armlink_pge1406297322750.htm}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Процедура по зареждане в Линукс - фаза I}
+	\begin{itemize}
+		\item Опростена последователност:
+		      \begin{itemize}
+			      \item \textbf{командният интерпретатор} прочита ELF файла и се пристъпва към системно извикване \textbf{(execve)}, чрез което контролът се подава на ядрото;
+			      \item \textbf{заглавните байтове на ELF файла} определят кой вграден в ядрото обработчик \textbf{(handler)} да се извика;
+			      \item \textbf{(fs/binfmt\_elf.c -\textgreater load\_binary)} се изпълнява, за да разчете ELF файла
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Процедура по зареждане в Линукс - фаза II}
+	\begin{itemize}
+		\item Опростена последователност:
+		      \begin{itemize}
+			      \item обработчикът в ядрото се грижи за \textbf{първоначалната конфигурация на паметта}, в която сегментите ще бъдат заредени;
+						\item ако се намери \textbf{.interp} секция, ядрото изобразява външната зареждаща програма в паметта и я стартира, за да може тя да продължи с обработката на изпълнимия файл;
+						\item ако не се намери .interp секция, ядрото зарежда ELF файла в паметта непосредствено и го изпълнява
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{ELF file: обобщение}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \item не е задължтелно размерът на един сегмент в ELF файла да кореспондира на размера на областта от паметта, в която този сегмент се поставя и изобразява;
+			      \item стартовият адрес на програмата обикновено обозначава стартовия адрес на \textbf{програмния интерпретатор}, който обезпечава среда за действителното изпълнение на програмата;
+			      \item има още много подробности, които са описани в реферираната документация;
+			      \item \textbf{динамичното свързване} и \textbf{механизмите на свързване} заслужват отделна презентация
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Какво предстои да разглеждаме по-натам?}
+	\begin{itemize}
+		\item \textbf{Политики за управление на процеси};
+		\item \textbf{Виртуална памет и механизми на изобразяване на сегментите на един изпълним файл};
+		\item \textbf{Очертаем механизмите на свързване и зареждане}
+	\end{itemize}
+}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://search.creativecommons.org/}
+		\item \url{https://en.wikipedia.org/wiki/Process_state}
+		\item \url{https://en.wikipedia.org/wiki/Linux_kernel_interfaces}
+		\item \url{https://man7.org/linux/man-pages/man2/syscalls.2.html}
+		\item \url{https://web.archive.org/web/20100218115342/http://www.linfo.org/context_switch.html}
+		\item \url{https://en.wikipedia.org/wiki/Computer_architecture}
+		\item \url{https://en.wikipedia.org/wiki/Instruction_set_architecture}
+		\item \url{https://en.wikipedia.org/wiki/Executable_and_Linkable_Format}
+		\item \url{https://refspecs.linuxfoundation.org/elf/elf.pdf}
+		\item \url{https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/elf.h}
+		\item \url{https://lwn.net/Articles/631631/}
+		\item \url{https://www.keil.com/support/man/docs/armlink/armlink_pge1406297322750.htm}
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+

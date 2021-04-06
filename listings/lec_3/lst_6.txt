@@ -1,0 +1,21 @@
+readelf --sections ./test_util
+...
+Section Headers:
+  [Nr] Name              Type             Address           Offset
+       Size              EntSize          Flags  Link  Info  Align
+
+       0000000000000228  0000000000000018  AI       0    20     8
+  [ 4] .init             PROGBITS         0000000000400400  00000400
+       0000000000000017  0000000000000000  AX       0     0     4
+  ...
+  [10] .rodata           PROGBITS         0000000000492440  00092440
+       00000000000192ac  0000000000000000   A       0     0     32
+  ...
+  [21] .data             PROGBITS         00000000006b90e0  000b90e0
+       0000000000001af0  0000000000000000  WA       0     0     32
+  ...
+  [26] .bss              NOBITS           00000000006bb2e0  000bb2d8
+       0000000000001738  0000000000000000  WA       0     0     32
+  ...
+  [30] .symtab           SYMTAB           0000000000000000  000bc940
+       000000000000aae8  0000000000000018          31   680     8

@@ -1,0 +1,12 @@
+typedef struct {
+	Word	p_type;		/* Common types 	*/
+	Offset	p_offset;
+	Address	p_vaddr;	/* 0 = PT_NULL;		*/
+	Address	p_paddr;	/* 1 = PT_LOAD;		*/
+	Word	p_filesz;	/* 2 = PT_DYNAMIC;	*/
+	Word	p_memsz;	/* 3 = PT_INTERP;	*/
+	Word	p_flags;	/* 4 = PT_NONE;		*/
+	Word	p_align;	/* 5 = PT_SHLIB;	*/
+} ProgramHeader32		/* 6 = PT_HEADER;	*/
+				/* 7 = PT_TLS;		*/
+				/* ...			*/

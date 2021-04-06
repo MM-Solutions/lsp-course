@@ -1,0 +1,21 @@
+readelf --segments ~/Desktop/Test/Project/test_util 
+
+Elf file type is EXEC (Executable file)
+Entry point 0x400a50
+There are 6 program headers, starting at offset 64
+
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  LOAD           0x0000000000000000 0x0000000000400000 0x0000000000400000
+                 0x00000000000b5e0e 0x00000000000b5e0e  R E    0x200000
+  LOAD           0x00000000000b6120 0x00000000006b6120 0x00000000006b6120
+                 0x00000000000051b8 0x0000000000006920  RW     0x200000
+  NOTE           0x0000000000000190 0x0000000000400190 0x0000000000400190
+                 0x0000000000000044 0x0000000000000044  R      0x4
+  TLS            0x00000000000b6120 0x00000000006b6120 0x00000000006b6120
+                 0x0000000000000020 0x0000000000000060  R      0x8
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000000 0x0000000000000000  RW     0x10
+  GNU_RELRO      0x00000000000b6120 0x00000000006b6120 0x00000000006b6120
+                 0x0000000000002ee0 0x0000000000002ee0  R      0x1

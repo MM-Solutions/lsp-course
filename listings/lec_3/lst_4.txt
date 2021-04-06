@@ -1,0 +1,15 @@
+typedef struct {
+	Word	sh_name;	/* Common types 	*/
+	Word	sh_type;	/* 0  = SHT_NULL	*/
+	Word	sh_flags;	/* 1  = SHT_PROGBITS	*/
+	Address	sh_addr;	/* 2  = SHT_SYMTAB	*/
+	Offset	sh_offset;	/* 3  = SHT_STRTAB	*/
+	Word	sh_size;	/* 4  = SHT_RELA	*/
+	Word	sh_link;	/* 5  = SHT_HASH	*/
+	Word	sh_info;	/* 6  = SHT_DYNAMIC	*/
+	Word	sh_addralign;	/* 7  = SHT_NOTE	*/
+	Word	sh_entsize;	/* 8  = SHT_NOBITS	*/
+} SectionHeader32		/* 9  = SHT_REL		*/
+				/* 10 = SHT_SHLIB	*/
+				/* 11 = SHT_DYNSYM	*/
+				/* .................	*/

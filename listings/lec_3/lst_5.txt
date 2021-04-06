@@ -1,0 +1,16 @@
+typedef struct {
+	Byte		e_iden[16];
+	HalfWord	e_type;		/* Common types 	*/
+	HalfWord	e_machine;	/* 0  = ET_NONE		*/
+	Word		e_version;	/* 1  = ET_REL		*/
+	Address		e_entry;	/* 2  = ET_EXEC		*/
+	Offset		e_phoff;	/* 3  = ET_DYN		*/
+	Offset		e_shoff;	/* 4  = ET_CORE		*/
+	Word		e_flags;	/* ...................	*/
+	HalfWord	e_ehsize;
+	HalfWord	e_phentsize;
+	HalfWord	e_phnum;
+	HalfWord	e_shentsize;
+	HalfWord	e_shnum;
+	HalfWord	e_shstrndx;
+} ELFHeader
