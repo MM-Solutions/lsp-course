@@ -1,0 +1,13 @@
+	/* Check for child process - pid == 0 */
+	if (!pid) {
+		fprintf(stdout, "child execs ls -al");
+		ret_status = execlp("ls", "ls", "-al", "./", (char *)NULL);
+		fprintf(stdout, "Error running execlp ret: %d\n",
+			ret_status);
+	} else {
+		fprintf(stdout, "parent runs with pid: %d and parent pid: %d\n",
+			getpid(), getppid());
+		waitpid(pid, NULL, 0);
+		exit(EXIT_SUCCESS);
+	}
+}

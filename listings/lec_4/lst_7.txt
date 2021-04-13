@@ -1,0 +1,16 @@
+$ ps -e -o pid,ppid,pri,cmd
+
+    0  7087     2  39 [kworker/u17:7]
+    0  7420     2  19 [kworker/0:0]
+    0  7823     2  39 [kworker/u17:0]
+    0  8032     2  19 [kworker/6:0]
+    0  8193     2  19 [kworker/3:2]
+    0  8388     2  19 [kworker/3:1]
+    0  8419     2  19 [kworker/4:1]
+    0  8800     2  19 [kworker/u16:1]
+    0  8989     2  19 [kworker/u16:4]
+    0  9007     2  19 [kworker/4:0]
+    0  9145     2  39 [kworker/u17:4]
+    0  9407     2  19 [kworker/7:1]
+    0  9563     2  19 [kworker/u16:2]
+    0  9564     2  19 [kworker/u16:3]

@@ -1,0 +1,11 @@
+	/* Check for child process - pid == 0 */
+	if (!pid) {
+		sleep(5);
+		fprintf(stdout, "child runs with pid: %d and parent pid: %d\n",
+			getpid(), getppid());
+	} else {
+		fprintf(stdout, "parent runs with pid: %d and parent pid: %d\n",
+			getpid(), getppid());
+		exit(EXIT_SUCCESS);
+	}
+}

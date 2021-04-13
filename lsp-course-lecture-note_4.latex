@@ -1,0 +1,837 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+\usepackage{mathtools}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={C},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Управление на процесите. Дисциплини за планиране.}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{14.04.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да поясни:
+		      \begin{itemize}
+			      \item как ОС координира изпълнението на потребителски задания и на своите собствени процеси;
+			      \item каква е ролята на системния диспечер;
+			      \item какво е контролен блок за управление на процеси (PCB);
+			      \item какви основни дисциплини за планиране съществуват;
+			      \item очертае основни механизми за планиране на задачи в многоядрени или многопроцесорни системи;
+			      \item кои са основните системни извиквания, обвързани с жизнения цикъл на заданията
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Въведение}
+	\begin{itemize}
+		\item \textbf{Предизвикателства} при обслужването на програмни задания:
+		      \begin{itemize}
+			      \item как процесорът или процесорните ядра да бъдат натоварени оптимално;
+			      \item как да се координира обработването на входно-изходни операции;
+			      \item как да се планира степента на натовареност с оглед на обема постъпващи задачи;
+			      \item как нивото на мултипрограмиране да се поддържа стабилно във времето;
+			      \item как се обезпечава обслужване на множество потребители и/или заявки във времето
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{ОС в ролята на мениджър на системни ресурси}
+	\begin{itemize}
+		\item Основни ангажименти:
+		      \begin{itemize}
+			      \item позволи изпълнение на множество потребителски приложения в прогнозируемо време;
+			      \item да \textbf{гарантира отзивчивост} на системата, като намали възможността за нежелан срив;
+			      \item да \textbf{планира системното натоварване} и осигури балансиран поток от обслужвани задания;
+			      \item да \textbf{определя адекватно избора на процеси за изпълнение} съобразно потребностите и заложените цели;
+			      \item да предостави възможност за управление и конфигуриране степента на натовареност
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}
+	\frametitle{Какво е многозадачност?}
+	\begin{columns}[T]
+		\begin{column}{.6\textwidth}
+			\begin{block}{\textbf{Дефиниция}:}
+				% Text included here
+				\begin{itemize}
+					\item възможност за последователно редуващо се във времето или паралелно изпълнение на множество потоци от инструкции, които идентифицират едно или повече различни задания
+				\end{itemize}
+			\end{block}
+		\end{column}
+		\begin{column}{.4\textwidth}
+			% optional image title
+			\begin{block}{}
+				\begin{center}
+					\begin{figure}
+						\includegraphics[width=.9\textwidth]{images/lec_4/fig_10.jpg}
+						\caption{pic. by uberof202, CC BY-SA 2.0 via creativecommons.org }
+					\end{figure}
+				\end{center}
+			\end{block}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\section{Политики за многозадачност}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как се подсигурява среда за многозадачност при еднопроцесорни системи?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Кооперативен подход}
+	\begin{itemize}
+		\item \textbf{Същност}:
+		      \begin{itemize}
+			      \item ОС се доверява на разработчиците на приложения;
+			      \item ОС делегира отговорността на автора на заданието да поеме контрол върху системните ресурси и да ги освободи своевременно, когато е готов
+		      \end{itemize}
+		\item \textbf{Контролът се връща на ОС при}:
+		      \begin{itemize}
+			      \item нормално завършване на задачата;
+			      \item заявка за изпълняваща се по-бавна входно-изходна операция;
+			      \item възникване на изключителна ситуация - грешка
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Системни извиквания}
+	\begin{itemize}
+		\item Разновидности:
+		      \begin{itemize}
+			      \item тип \textbf{trap} - инициира превключване на контекст;
+			      \item тип \textbf{yield} - сигнализира заявка за освобождаване на заетия изчислителен ресурс;
+			      \item тип \textbf{interrupt} - свързани с обслужване на събитие, маркирано от хардуерно прекъсване;
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Кооперативен подход: системна координация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_13.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Cooperative_multitasking}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Кооперативен подход: недостатъци}
+	\begin{columns}[T]
+		\begin{column}{.6\textwidth}
+			\begin{block}{Открояват се:}
+				% Text included here
+				\begin{itemize}
+					\item липса на механизъм за детекция и справяне с логически дефекти;
+					\item липса на защитни инструменти за предотвратяване на последици от злонамерен софтуер, който монополизира процесора;
+					\item всеки генерален пропуск за навременно връщане на управлението на ОС води до компрометиране функционалността на системата
+				\end{itemize}
+			\end{block}
+		\end{column}
+		\begin{column}{.4\textwidth}
+			% optional image title
+			\begin{block}{}
+				\begin{center}
+					\begin{figure}
+						\includegraphics[width=.9\textwidth]{images/lec_4/fig_12.png}
+						\caption{pic. own work }
+					\end{figure}
+				\end{center}
+			\end{block}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Какво решение се предлага на така описаните проблеми?}
+	\end{center}
+\end{frame}
+
+\section{Механизъм с времеделене}
+\frame {
+	\frametitle{Подход с времеделене}
+	\begin{itemize}
+		\item Същност:
+		      \begin{itemize}
+			      \item отговорността по планиране на постъпващите задачи се поема изцяло от ОС;
+			      \item разчита се на просто хардуерно осигуряване - \textbf{програмируем таймер} и \textbf{механизъм на генериране и обработка на прекъсвания};
+			      \item задачите се обслужват на порции посредством \textbf{регулярно периодично редуване} на изпълняваните процеси до тяхното завършване;
+			      \item интервалите на обслужване и превключването на контекста се управляват с помощта на таймерните прекъсвания;
+			      \item ОС разполага с привилегирован достъп до таймера и обработването на прекъсванията
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Подход с времеделене}
+	\begin{itemize}
+		\item Отговорности на ОС:
+		      \begin{itemize}
+			      \item \textbf{проследяване} състоянието на изпълнение на наличните задачи;
+			      \item \textbf{съхранение на локалните данни и регистрови структури} на текущо изпълнявания процес преди превключването;
+			      \item наличие на специализирани подпрограми за \textbf{обслужване на апаратно прекъсване} и манипулиране на контекста;
+			      \item \textbf{възстановяване} на вече съхранените локални данни и регистрови структури преди възобновяване на прекъснат процес
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Да си припомним процедурата по превключване на контекст}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_11.png}
+			\caption{pic. based on \url{https://web.archive.org/web/20100218115342/http://www.linfo.org/context_switch.html}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Подход с времеделене}
+	\begin{itemize}
+		\item \textbf{Предизвикателства}:
+		      \begin{itemize}
+			      \item апаратната поддръжка преодолява проблема, свързан с нежелано заемане на процесора от една програма;
+			      \item остава обаче необходимост от проследяване характера на работното натоварване и планирането на заданията;
+			      \item никой не желае важна задача да бъде прекъсвана и отлагана постоянно
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Контролен блок за управление на процеси}
+\frame {
+	\frametitle{Контролен блок за управление на процеси}
+	\begin{itemize}
+		\item Предназначение:
+		      \begin{itemize}
+			      \item описва \textbf{системни атрибути}, които представят изпълнявания процес и подпомагат работата на подсистемите за планиране на задачи;
+			      \item използва се за представяне на \textbf{контекста} на изчисление;
+			      \item участва в механизмите за превключване на процесора и предаване управлението на друг процес
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на управляващ блок на процес}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_7.png}
+			\caption{pic. based on \url{https://elixir.bootlin.com/linux/latest/source/include/linux/sched.h}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Структура на управляващ блок на процеса}
+	\begin{itemize}
+		\item Отразява обикновено:
+		      \begin{itemize}
+			      \item състоянието на процеса: чакащ изпълнение, изпълняващ се, блокиран, терминиран и т.н.;
+			      \item съдържанието на програмния брояч, указващ поредната инструкция за изпълнение;
+			      \item съдържание на програмния стек, което отразява етапа на изпълнение на задачата;
+			      \item регистрови структури на процесора, които са ангажирани: PC, LR or FP, акумулатори, флагове и др.;
+			      \item данни за сегментите виртуална памет, в които се помества изпълнимият образ и др.
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Системен диспечер на процеси: организация и метрики}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{A как е огранизирано планирането на процесите?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Системен диспечер на заданията}
+	\begin{itemize}
+		\item \textbf{Роля}:
+		      \begin{itemize}
+			      \item \textbf{управлява работното натоварване}, отразено чрез количеството постъпващи задания;
+			      \item \textbf{имплементира политики за планиране} на процесите на високо логическо ниво;
+			      \item извършва \textbf{мониторинг} на зададени критерии за оценка на производителността;
+			      \item предоставя \textbf{механизми за обработка на системни прекъсвания} и превключване на процесора на ниско ниво;
+			      \item възползва се от механизми за манипулиране, съхранение и възстановяване на контекста
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Диспечер на заданията}
+	\begin{itemize}
+		\item Критерии за производителност:
+		      \begin{itemize}
+			      \item \textbf{абсолютна степен на заетост} на системните ресурси (количесво разходвана памет, процесорни ядра, набор ангажирани входно-изходни устройства);
+			      \item \textbf{относително време за изчакване} в опашката от постъпващи задания спрямо набора задачи;
+			      \item \textbf{относително време за изпълнение} спрямо количеството на задачите и характера на обработките
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}
+	\frametitle{Традиционни метрики}
+	\begin{columns}[T]
+		\begin{column}{.3\textwidth}
+			\begin{minipage}[t][.7\textheight][t]{\textwidth}
+				\begin{figure}
+					% Image included here
+					\includegraphics[width=\textwidth,height=.5\textheight,keepaspectratio]{images/lec_4/fig_14.png}
+					\caption{pic. own work }
+				\end{figure}
+			\end{minipage}
+		\end{column}
+		\begin{column}{.7\textwidth}
+			\begin{block}{Примери:}
+				% Text included here
+				\begin{itemize}
+					\item време за изпълнение на задание: \textbf{T turnaround};
+					\item средно време за чакане;
+					\item средно време за отговор или резултат: \textbf{T response}
+				\end{itemize}
+			\end{block}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Дефиниция на най-често срещаните метрики:}
+	\end{center}
+	\begin{equation}
+		T_{turnaround} = T_{completion} - T_{arrival}
+	\end{equation}
+	\begin{equation}
+		T_{turnaround} = T_{first run} - T_{arrival}
+	\end{equation}
+\end{frame}
+
+\frame {
+	\frametitle{Начални допускания при част от разглежданите примери}
+	\begin{itemize}
+		\item Приема се:
+		      \begin{itemize}
+			      \item фиксиран характер на работния товар и фиксиран брой процеси;
+			      \item всички заявки постъпват първоначално в приблизително еднакъв момент от време;
+			      \item не съществува задача с неизвестно прогнозирано време за обработка;
+			      \item визират се разновидности планиране с изместване (preemptive)
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Политики за планиране}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А какви са възможните политики за планиране?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Дисциплина FIFO: първи дошъл - първи обслужен}
+	\begin{itemize}
+		\item \textbf{Същност}:
+		      \begin{itemize}
+			      \item илюстрира общоразпространен принцип на подредба на заданията в единична опашка;
+			      \item обслужването става според реда на постъпване
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Дисциплина FIFO: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_2.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Scheduling_(computing)}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Дисциплина FIFO: разновидности}
+	\begin{itemize}
+		\item Някои от най-важните са:
+		      \begin{itemize}
+			      \item "\textbf{първи дошъл - първи обслужен (FCFS)}" - без изместване на активна задача;
+			      \item "\textbf{най-краткото задание първо (SJF)}" - да премахнем ли изискването задачите да постъпват в един момент от време?;
+			      \item "\textbf{заданието с най-малко оставащо време до завършване първо (STCF)}" - тук би трябвало да премахнем и изискването всяка задача да се изпълнява напълно от момента на постъпване
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{FIFO: сравнителна илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.7\textwidth, keepaspectratio]{images/lec_4/fig_8.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{FIFO: пояснение на метриките в илюстрацията}
+	\end{center}
+	\begin{equation}
+		T_{turnaround(FIFO)} = \frac{(140 + 160 + 180)}{3}
+	\end{equation}
+	\begin{equation}
+		T_{turnaround(SJF)} = \frac{(20 + 40 + 180)}{3}
+	\end{equation}
+	\begin{equation}
+		T_{turnaround(STCF)} = \frac{((180 - 0) + (40 - 20) + (60 - 20))}{3}
+	\end{equation}
+\end{frame}
+
+\frame {
+	\frametitle{Дисциплина RR: кръгова или циклична}
+	\begin{itemize}
+		\item \textbf{Същност}:
+		      \begin{itemize}
+						\item стои в основата на интерактивните системи с времеделене;
+						\item всяка задача постъпва в опашка, като получава процесора за фиксиран квант от време и се нарежда обратно в опашката до приключване
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как би могла да се имплементира RR политика на практика?}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на RR имплементация с няколко опашки}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_5.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Дисциплина RR: илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.7\textwidth, keepaspectratio]{images/lec_4/fig_9.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Критерий справедливост на планиране}
+	\begin{itemize}
+		\item \textbf{Дефиниция}:
+		      \begin{itemize}
+						\item базова оценка дали планирането е справедливо (\textbf{fair}) по отношение в каква степен алгоритъмът е склонен да обработва един клас задачи за сметка на друг
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Планиране при SMP системи}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Какви решения съществуват при SMP системите?}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на SMP система}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_1.png}
+			\caption{pic. by CountingPine, Public Domain via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Планиране при многопроцесорни/многоядрени системи}
+	\begin{itemize}
+		\item Подходи:
+		      \begin{itemize}
+						\item вземат под внимание механизмите за работа с \textbf{кеш паметта};
+						\item състоянието на обновяваните зони в кеша и \textbf{инвалидирането} им изисква нови инструменти за синхронизация
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Дисциплини при SMP системи}
+	\begin{itemize}
+		\item Примери:
+		      \begin{itemize}
+						\item \textbf{SQMS} - с една споделена опашка и миграция на задачи;
+						\item \textbf{MQMS} - с отделна обособена опашка за всеки процесор
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Диспечериране на процесите в Линукс}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как се диспечерират процесите в Линукс?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Линукс диспечер: кратка предистория}
+	\begin{itemize}
+		\item Характеристики на O(1) алгоритъм:
+		      \begin{itemize}
+						\item нуждае се от \textbf{константно време} за избор на задача независимо от броя процеси;
+						\item разновидност на RR с времеделене и фиксиран квант от време;
+						\item поддържат се две опашки - на активни и неактивни процеси;
+						\item избраният от списъка с активни процес се изпълнява за времевия квант и постъпва в опашка на неактивни (изчакващи) задания;
+						\item при изчерпване на готовите за изпълнение процеси - ролята на двете опашки се сменя
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Линукс диспечер: CFS}
+	\begin{itemize}
+		\item Характеристики на CFS диспечер:
+		      \begin{itemize}
+						\item въвежда различни \textbf{класове на планиране}, в които процесите се групират; 
+						\item всеки клас се характеризира с различен \textbf{приоритет и алгоритъм за обслужване};
+						\item пропорция от процесорното време се предоставя според степента на кооперативност на един процес (\textbf{nice value});
+						\item не се възползва от установени времеви отрязъци, а идентифицира средното време, което един процес прекарва в очакване да получи обслужване;
+						\item с нарастване на времето за изчакване на получаване на обслужване, нараства и относителният приоритет на процеса
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Степен на кооперативност: (nice value)}
+	\begin{itemize}
+		\item Обхват от стойности:
+		      \begin{itemize}
+						\item от -20 до +19 десетично;
+						\item по-ниска стойност указва по-висок приоритет;
+						\item промяна на приоритет може да бъде заявена чрез \textbf{renice} например;
+						\item Линукс поддържа и дисциплини за работа в реално време: \textbf{SCHED\_FIFO} и \textbf{SCHED\_RR};
+						\item действителният обхват от приоритети е разделен на два подинтервала: [0-99] за реалновремеви и [100-139] за такива с нормален приоритет
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Разкриване на йерархията на процесите}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_4/lst_6.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Мониторинг на приоритетитие на процесите}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_4/lst_7.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Състояния на процесите в Линукс}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_4/lst_8.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\section{Практическа част}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Практическа част: демонстрация на fork, wait, exit и exec системни извиквания}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Fork системно извикване}
+	\begin{itemize}
+		\item Предназначение:
+		      \begin{itemize}
+			      \item създава нов подчинен процес, наречен \textbf{потомък (child)}
+		      \end{itemize}
+		\item Потомъкът се изпълнява в копие на виртуалното адресно пространство на родителския процес, като:
+		      \begin{itemize}
+						\item новият процес получава свой \textbf{уникален идентификатор (PID)};
+						\item новият процес не наследява семафорни примитиви за манипулация на адресното пространсто, както и структури, дефиниращи операции за работа със семафори;
+						\item новият процес наследява обаче копия на файловите дескриптори, принадлежащи на родителя
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на йерархията между процесите}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_4/fig_15.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Pstree}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Fork примерна програма: начало}
+
+	\begin{source}
+		\lstinputlisting{listings/lec_4/lst_1.txt}
+	\end{source}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Fork примерна програма: продължение}
+
+	\begin{source}
+		\lstinputlisting{listings/lec_4/lst_2.txt}
+	\end{source}
+\end{frame}
+
+\frame {
+	\frametitle{Wait системно извикване}
+	\begin{itemize}
+		\item Предназначение:
+		      \begin{itemize}
+			      \item временно преустановява изпълнението на извикващия процес до получаване на нотификация за промяна в състоянието на процеса потомък
+		      \end{itemize}
+		\item Особености:
+		      \begin{itemize}
+						\item промяна в състоянието на процеса потомък се указва чрез: терминиране, прихващане на сигнал за стопиране или възобновяване;
+						\item в случая на терминиран процес, \textbf{wait} позволява на родителя да освободи ресурсите, асоциирани с процеса потомък;
+						\item ако родителският процес не се възползва от услугите на wait, то терминираният процес наследник остава в "\textbf{зомби}" състояние
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Осиротял процес потомък: пример}
+
+	\begin{source}
+		\lstinputlisting{listings/lec_4/lst_3.txt}
+	\end{source}
+\end{frame}
+
+\frame {
+	\frametitle{Exec фамилия от системни извиквания}
+	\begin{itemize}
+		\item Предназначение:
+		      \begin{itemize}
+			      \item подменя съдържанието на виртуалното адресно пространство, заделено за процес наследник, с изображение на нов външен процес, идентифициран чрез име на програма и съпътстващи аргументи
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Модификация на образа на процес наследник: пример}
+
+	\begin{source}
+		\lstinputlisting{listings/lec_4/lst_4.txt}
+	\end{source}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Това не е всичко! Има много повече възможности и примери, описани в man pages...}
+	\end{center}
+\end{frame}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/wiki/Process_management_(computing)}
+		\item \url{https://en.wikipedia.org/wiki/Scheduling_(computing)}
+		\item \url{https://en.wikipedia.org/wiki/Shortest_job_next}
+		\item \url{https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched-multi.pdf}
+		\item \url{https://en.wikipedia.org/wiki/Cooperative_multitasking}
+		\item \url{https://www.linuxjournal.com/node/10267}
+		\item \url{https://man7.org/linux/man-pages/man2/fork.2.html}
+		\item \url{https://man7.org/linux/man-pages/man2/waitid.2.html}
+		\item \url{https://linux.die.net/man/3/execl}
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://search.creativecommons.org/}
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+
