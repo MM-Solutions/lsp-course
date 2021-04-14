@@ -45,7 +45,7 @@
   \def\svgwidth{5cm}
   \input{./images/Logo_MMS_svg.pdf_tex}
 }
-\date{07.04.2021}
+\date{14.04.2021}
 
 
 \begin{document}
@@ -459,7 +459,7 @@ target: dependencies
   \frametitle{ GIT }
   \begin{itemize}
     \item Най-популярната система за контрол на версиите.
-    \item Масово използвана за софтуер.
+    \item Масово използвана при разработка и поддръжка на софтуер.
     \item Но може да се ползва и за други цифрови проекти:
       \begin{itemize}
          \item Документация (като тази презентация).
@@ -467,6 +467,7 @@ target: dependencies
          \item Проекти за механични изделия.
       \end{itemize}
     \item Оптимизирана да работи с текст, но се справя и с двоични файлове.
+    \item Не е система за ревю!
     \item Други подобни системи: hg, svn, bazaar, cvs.
   \end{itemize}
 \end{frame}
@@ -476,9 +477,13 @@ target: dependencies
   \begin{itemize}
     \item GIT може пълноценно да работи без сървър, само с локален проект.
       \begin{itemize}
-         \item Всяко GIT дърво съдържа цялата история на проекта.
+         \item Всяко GIT дърво съдържа независимо копие на историята на проекта.
       \end{itemize}
     \item Сървърът позволява обаче да споделяте кода си с други хора.
+      \begin{itemize}
+         \item \verb|git push| : записване на Вашата история на сървър (remote).
+         \item \verb|git fetch| : сваляне на историята на даден сървър.
+      \end{itemize}
     \item Съществуват безплатни сървъри, на които да публикувате проектите си.
   \end{itemize}
 \end{frame}
@@ -491,18 +496,54 @@ target: dependencies
     \item Паралелна работа на множество разработчици.
     \item Пълноценност без свързаност към интернет.
     \item Гъвкавост при издаване (release flow).
+    \begin{itemize}
+      \item Лесно разклонение (branching).
+    \end{itemize}
   \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GIT - commits }
+  \begin{itemize}
+    \item Всяка точка от историята се представя с SHA256 сума от:
+     \begin{itemize}
+        \item Нейната предистория (родителските commit-и).
+	\item Новото състояние на дървото (разликата с родителския commit).
+     \end{itemize}
+    \item Работи се в локални разклонения (branches).
+    \item На важни точки от историята могат да се сложат етикети (tags).
+    \item Историята може да се слива (merge commits).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Staging }
+  \begin{itemize}
+   \item Staging е буфер, с който контролираме кои локални промени да вкараме в следващата точка от историята (commit).
+   \item \verb|git add *| : добавя всички локални промени в буфера.
+   \item \verb|git commit| : прави нов commit с промените, които сме подготвили в staging буфера.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\begin{center}
+  \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{images/labs/gitk-screenshot.png}
+\end{center}
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{ GIT команди}
 \begin{lstlisting}
-$ mkdir my-empty-repo ; cd my-empty-repo ; git init
+$ git init my-new-repo
 $ git clone https://github.com/MM-Solutions/lsp-course
 $ git add *
+$ git status
 $ git commit
 $ git push
+$ git pull
 $ git log
+$ git log --decorate --graph --oneline
+$ git show COMMIT
 $ gitk
 \end{lstlisting}
 \end{frame}
@@ -510,11 +551,49 @@ $ gitk
 \begin{frame}[fragile]
   \frametitle{ Задача }
   \begin{itemize}
-    \item Регистрирайте се в \url{github.com}, или \url{gitlab.com}, или \url{bitbucket.org}, или подобен.
-    \item Направете си публично ГИТ хранилище (GIT project, GIT repo) с име "c-hello-world".
-    \item Добавете С задачата от предишното упражнение към новото ГИТ хранилище, и я публикувайте.
+    \item Направете локален ГИТ проект и добавете C задачата от предишното упражнение в него.
+\begin{lstlisting}
+$ git init lsp-course-labs
+$ cd lsp-course-labs
+$ git add *
+$ git commit
+\end{lstlisting}
     \item Добавете README.md с кратко описание, и го публикувайте като отделен GIT commit.
-    \item За по-напредналите: свалете голям проект (например \url{https://github.com/torvalds/linux}), и изследвайте историята. Изпробвайте командата \verb|gitk|.
+    \item Разгледайте си историята с \verb|git log| и \verb|gitk|.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Направете си публично ГИТ хранилище (GIT project, GIT repo).
+    \item Предложения за сървър:
+      \begin{itemize}
+        \item \url{github.com}
+        \item \url{gitlab.com}
+        \item \url{bitbucket.org}
+      \end{itemize}
+    \item Следвайте съответните инструкции за настройка на достъпа. Най-често е посредством ssh key.
+    \item Публикувайте си C задачата използвайки \verb|git push|.
+    \item Добавете С задачата от предишното упражнение към новото ГИТ хранилище, и я публикувайте.
+    \item Споделете си новото ГИТ хранилище.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item За по-напредналите: свалете голям проект (например \url{https://github.com/torvalds/linux}), и изследвайте историята. Изпробвайте командите:
+\begin{lstlisting}
+$ git log
+$ git log --decorate --graph --oneline
+$ gitk
+$ git show COMMIT
+\end{lstlisting}
+    \item Прегледайте няколко произволни commit-а.
+    \begin{itemize}
+      \item Commit message разбираем ли е, дори за „новодошъл“?
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
