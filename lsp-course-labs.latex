@@ -526,6 +526,14 @@ target: dependencies
 \end{frame}
 
 \begin{frame}[fragile]
+  \frametitle{ Документация }
+  \begin{itemize}
+   \item \url{https://git-scm.com/book/}
+   \item \url{https://git-scm.com/book/bg}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
 \begin{center}
   \includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{images/labs/gitk-screenshot.png}
 \end{center}
@@ -603,15 +611,68 @@ $ git show COMMIT
 \begin{frame}[fragile]
   \frametitle{ PThreads }
   \begin{itemize}
-    \item TODO.
+    \item Posix Threads e стандартна библиотека за нишки.
+    \item Документация: \verb|man pthreads|
+    \item Работи и за отделни функции: \verb|man pthread_create|
   \end{itemize}
 \end{frame}
 
-\subsection { Pipes. Обмяна на съобщения между процеси или нишки. }
+\begin{frame}[fragile]
+  \frametitle{ Често използвани функции }
+  \begin{itemize}
+    \item \verb|pthread_create|
+    \item \verb|pthread_join|
+    \item \verb|pthread_mutex_lock|
+    \item \verb|pthread_mutex_unlock|
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Преправете задачата от предишното упражнение да смята сумата в една отделна нишка.
+    \item Помислете как ще върнете резултата от пресмятането така, че да не се вика printf вътре в новата нишка.
+    \item Направете нов GIT commit за промяната.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача за напреднали }
+  \begin{itemize}
+    \item Напишете програма, която създава отделна нишка за всяко \verb|/dev/input/event*| устройство.
+    \item Всяка нишка да чете и декодира събитията от съответното у-во.
+    \item Изполвайте функцията \verb|do_capture| от \url{https://github.com/freedesktop-unofficial-mirror/evtest/blob/master/evtest.c}
+    \item Споделете в github.
+    \item Възможно ли е тази програма да се напише без pthreads?
+  \end{itemize}
+\end{frame}
+
+\subsection { Pipes. Обмяна на съобщения между процеси. }
 \begin{frame}[fragile]
   \frametitle{ Pipes }
   \begin{itemize}
-    \item TODO.
+    \item Не само UNIX Shell може да създава тръби.
+    \item Защо обаче \verb|man 2 pipe2| не приема аргумент за команда, която да изпълни?
+     \begin{itemize}
+      \item Защото създаването на нов процес е отделен syscall: \verb|man 2 fork|
+      \item Защото изпълнението на нова програма е отделен syscall: \verb|man 3 execl|
+      \item Защото задаването на stdout и stdin са под контрола на процеса: \verb|man 2 dup2|
+     \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Преправете задачата от предишното упражнение да смята сумата от две числа използвайки външна програма.
+    \item Съвет: \verb@echo "2+3" | bc@
+    \item Съвет: Препоръчителна последователност:
+     \begin{itemize}
+       \item Създайте тръба с \verb|man 2 pipe2|.
+       \item Създайте нов процес с \verb|man 2 fork|.
+       \item Задайте вход/изход на child процеса да са file descriptors от тръбата. Използвайте \verb|man stdout| , \verb|man 2 dup2|
+     \end{itemize}
+    \item Публикувайте нов GIT branch за промяната.
   \end{itemize}
 \end{frame}
 
@@ -620,10 +681,25 @@ $ git show COMMIT
 \begin{frame}[fragile]
   \frametitle{ mmap }
   \begin{itemize}
-    \item TODO.
+    \item Магия, чрез която данни от диска се появяват в оперативната памет на процеса.
+    \item Същата магия се използва за зареждане на динамични библиотеки:
+\begin{lstlisting}
+$ cat /proc/self/maps
+\end{lstlisting}
+    \item \verb|man 2 mmap|
   \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{ Задача }
+  \begin{itemize}
+    \item Реализирайте двоично търсене на дума в речник.
+    \item Използвайте файла \verb|/usr/share/dict/words| за входни данни.
+    \item Използвайте \verb|man 2 mmap| за достъп чрез указател до файла.
+    \item Използвайте \verb|man 2 fstat| за да узнаете колко е голям файла.
+    \item Публикувайте нов GIT branch за промяната.
+  \end{itemize}
+\end{frame}
 
 \subsection { Strace. Syscalls, ioctl. }
 \begin{frame}[fragile]
