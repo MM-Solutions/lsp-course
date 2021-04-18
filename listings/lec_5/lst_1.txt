@@ -1,0 +1,19 @@
+$ cat /proc/11470/status
+
+Name:	test
+Umask:	0022
+State:	S (sleeping)
+...
+VmPeak:	    4532 kB
+VmSize:	    4524 kB
+...
+VmData:	     176 kB
+VmStk:	     132 kB
+VmExe:	       8 kB
+VmLib:	    2120 kB
+VmPTE:	      56 kB
+VmSwap:	       0 kB
+...
+Threads:	1
+...
+

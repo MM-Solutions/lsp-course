@@ -1,0 +1,16 @@
+$ cat /proc/11470/maps
+...
+558217e9e000-558217ebf000 rw-p 00000000 00:00 0                          [heap]
+7f6e49ec3000-7f6e4a0aa000 r-xp 00000000 fd:00 7078562                    /lib/x86_64-linux-gnu/libc-2.27.so
+7f6e4a0aa000-7f6e4a2aa000 ---p 001e7000 fd:00 7078562                    /lib/x86_64-linux-gnu/libc-2.27.so
+7f6e4a2aa000-7f6e4a2ae000 r--p 001e7000 fd:00 7078562                    /lib/x86_64-linux-gnu/libc-2.27.so
+...
+7f6e4a2ae000-7f6e4a2b0000 rw-p 001eb000 fd:00 7078562                    /lib/x86_64-linux-gnu/libc-2.27.so
+...
+7f6e4a2b4000-7f6e4a2dd000 r-xp 00000000 fd:00 7078448                    /lib/x86_64-linux-gnu/ld-2.27.so
+...
+7f6e4a4dd000-7f6e4a4de000 r--p 00029000 fd:00 7078448                    /lib/x86_64-linux-gnu/ld-2.27.so
+7f6e4a4de000-7f6e4a4df000 rw-p 0002a000 fd:00 7078448                    /lib/x86_64-linux-gnu/ld-2.27.so
+7f6e4a4df000-7f6e4a4e0000 rw-p 00000000 00:00 0
+7ffe913f7000-7ffe91418000 rw-p 00000000 00:00 0                          [stack]
+

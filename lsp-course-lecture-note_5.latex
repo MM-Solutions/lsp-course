@@ -1,0 +1,1031 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+\usepackage{mathtools}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={C},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Управление на паметта. Виртуална памет и странична организация.}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{21.04.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да поясни:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item какво е \textbf{адресното пространство}, в което се зареждат и изпълняват заданията;
+			      \item какви са основните принципи за управление и разпределяне паметта;
+			      \item каква е концепцията на \textbf{страничната организация};
+			      \item какви основни механизми за разпределяне на паметта съществуват;
+			      \item каква е ролята на \textbf{мениджъра на паметта (MMU)} в една система
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Роля на ОС при управлението на паметта}
+	\begin{itemize}
+		\item Ангажименти:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item подсигури средства за управлението на физическата памет;
+			      \item освободи потребителските процеси от отговорността сами да се грижат за физическата организация на паметта;
+			      \item гарантира, че всеки процес ще се изпълнява в обособена и изолирана област от адресното пространство без възможност за директен достъп до паметта, предоставена на други процеси;
+			      \item изгради абстрактен модел на логическа организация на достъпваната памет (виртуализация);
+			      \item менажира разпределението и степента на заетост на физическата памет
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Особености на микропроцесорната архитектура}
+\frame {
+	\frametitle{Влияние на микропроцесорната архитектура}
+	\begin{itemize}
+		\item Фактори, с които ОС се съобразява:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item какъв \textbf{модел на изпълнение на програмни инструкции} е реализиран;
+			      \item какъв набор от регистрови структури и операции за адресиране и достъп до паметта са налични;
+			      \item какви \textbf{механизми за междинно буфериране на региони} от основната памет (кеширане) са реализирани и поддържани;
+			      \item какви \textbf{апаратни възможности за изолация и защита на адресното пространство} архитектурата предоставя
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Илюстрация на инструкционен конвейер}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_1.png}
+			\caption{pic. based on work by HydenB, CC BY-SA 4.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Конвейер на инструкциите}
+	\begin{itemize}
+		\item Разяснение на фазите:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{извличане} - прочитане на поредна инструкция от адрес, съхранен в програмния брояч и запазването и в регистъра на изпълнимата инструкция за изпълнение;
+			      \item \textbf{декодиране} - интерпретиране на инструкцията от блок декодер. При достъп до паметта се определя и ефективният адрес, като изчислението е зависимо от апаратния модел на сегментиране на паметта;
+			      \item \textbf{изпълнение} - изпълнение на извлечената инструкция, включващо прочитане на необходимите операнди, определяне на кода на операцията и математическа или логическа обработка от АЛУ, последвано от съхранение на резултата и установяване на флагове на състоянието;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Физически структури, съхраняващи данни}
+	\begin{itemize}
+		\item Обособяват се:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{регистри на процесора}: със специално/общо предназначение, даннови, адресни, буферни и др;
+			      \item \textbf{памет}: бърза асоциативна \textbf{(кеш памет)} и \textbf{оперативна} - с адресни и даннови шини за управление;
+			      \item \textbf{вторична дискова или флаш памет}: за дългосрочно съхранение на данни и програми
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Адресно пространство}
+\frame {
+	\frametitle{Какво е адресно пространство?}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item краен диапазон от адреси, ограничен от изчислителния хардуер, в който процесите се зареждат и изпълняват;
+			            }
+		      \end{itemize}
+		\item Видове:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{физическо} - множество от реални физически адреси, определено от размера на привързаната оперативно памет;
+			      \item \textbf{логическо} - виртуално множество от логически адреси, с които зарежданите и активни задания оперират, като този набор е представен по различен начин от действителната физическа организация
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}
+	\frametitle{Защо е необходимо това разграничение?}
+	\begin{columns}[T]
+		\begin{column}{.7\textwidth}
+			\begin{block}{Позволява на ОС да:}
+				% Text included here
+				\begin{itemize}
+					\scriptsize{
+					\item позволява на ОС да поеме контрол върху разпределението физическите ресурси;
+					\item прави възможно ОС да осигури изолация на адресното пространство на процесите и защита на данните, с които те оперират;
+					\item освобождава разработчиците от необходимостта да се грижат за това как приложенията се поместват в паметта и оперират с нея;
+					\item позволява изпълнението на множество програми, чиито изисквания могат да надвишават обема на наличната памет;
+					      }
+				\end{itemize}
+			\end{block}
+		\end{column}
+		\begin{column}{.3\textwidth}
+			% optional image title
+			\begin{block}{}
+				% Image included here
+				\begin{center}
+					\begin{figure}
+						\includegraphics[width=.5\textwidth]{images/lec_5/fig_12.png}
+						\caption{pic. by AliWijaya, CC BY-SA 3.0}
+					\end{figure}
+				\end{center}
+			\end{block}
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Да си припомним етапите по създаване на изпълним файл}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_2.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Compiler}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Обособяват се три основни фази}
+	\begin{itemize}
+		\item Пояснение:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{компилиране} - при генериране на обектна програма компилаторът изобразява символичните адреси в подходяща форма - преместваема най-често;
+			      \item \textbf{асемблиране и свързване} - обединяване на различни обектни фрагменти (подпрограми) и разрешаване на референции към външни библиотечни функции;
+			      \item \textbf{зареждане} - зареждане на процеса в паметта и представяне на преместваемите (relocatable) адреси в абсолютни
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как да опростим описаните етапи, така че ОС да поеме контрол върху паметта? Какви базови политики за разпределение на паметта за всеки изпълняван процес съществуват?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Статично разпределение на паметта}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{статичното разпределение}: налага предварително изчисляване на размера памет, необходим за разполагане и изъпълнение на дадена задача;
+			      \item цялата нужна оперативна памет се заделя наведнъж и след настройка на физическите адреси от свързващия редактор или зареждащата програма, изображението на процеса в паметта е фиксирано
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Бихте ли посочили примерни недостатъци на този подход?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Динамично разпределение на паметта}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{динамичното разпределение}: разчита на процедури по динамично заделяне на региони от паметта по време на изпълнение на процеса;
+			      \item работата на компилатора и свързващия редактор се облекчава, като се използват фиктивни логически адреси и отмествания, които се преобразуват във физически непосредствено преди всяко обръщение от паметта впоследствие;
+			      \item присвоените области реална памет подлежат на динамично преместване, свиване или разширяване - също в хода на работа
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Същност на виртуализацията}
+\frame {
+	\frametitle{Как се подсигурява виртуализацията?}
+	\begin{itemize}
+		\item Посредством апаратна поддръжка на:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{регистрови и таблични структури} за транслация между физически и логически адреси;
+			      \item \textbf{странично-сегментна организация} на виртуалното адресно пространство;
+			      \item механизми, подпомагащи въвеждането, извеждането и размяната на блокове (страници) между основната и вторичната памет
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Виртуализация и техники за адресно транслиране}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_3.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Virtual_memory}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Сегментация}
+\frame {
+	\frametitle{Сегментация с базови и гранични регистри}
+	\begin{itemize}
+		\item Същност:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item за всяка задача се привързва \textbf{таблица със сегментите};
+			      \item вски нейн запис е структура с два елемента - \textbf{базов адрес} и \textbf{дължина на региона} (граница);
+			      \item записите на сегментната таблица се съхраняват и модифицират посредством двойка регистри: \textbf{базов} и \textbf{граничен};
+			      \item по време на изпълнение виртуалните адреси се превръщат във физически динамично с помощта на привързаната сегментна таблица;
+			      \item към прочетения базов адрес за даден индекс се прибавя отместването и се прави проверка дали границата е надвишена
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Сегментация: диаграма на адресиране}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_4.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/vm-segmentation.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Характеристики на сегментацията}
+	\begin{itemize}
+		\item Позволява:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item позволява \textbf{динамична релокация} на разделите на изпълнимия процес по време на изпълнение;
+			      \item нов начален адрес на сегмент може да бъде указан чрез промяна на стойността на базовия регистър;
+			      \item респективно нов размер би могъл да бъде настроен с помощта на граничния регистър
+			      \item заданията могат да се разполагат в паметта на произволно място и паметта да се уплътнява;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Пример при сегментно разпределение}
+	\begin{itemize}
+		\item Нека да предположим, че:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item началото на heap региона започва от виртуален адрес 4096 (4KB);
+			      \item съдържанието на базовия регистър за heap е 48 KB във физическата памет;
+			      \item горната граница е настроена на 64 KB
+			            }
+		      \end{itemize}
+					\item На какъв действителен адрес ще кореспондира виртуален адрес 4100?
+		      \begin{itemize}
+			      \scriptsize{
+			      \item ако просто добавим 4100 към стойността в базовия регистър, няма да получим коректен резултат (52100);
+			      \item първо трябва да определим отместването спрямо указаното начало, което в случая е: 4096, като получаваме 4100 - 4096 = 4
+			      \item вземаме изчисленото отместване и го добавяме към съдържанието на базовия регистър, за да получим верния резултат: 48004
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Недостатъци на сегментацията}
+	\begin{itemize}
+		\item Можем да споменем някои:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item при динамична честа промяна на границите на сегментите се полува отчетлива фрагментация на физическата памет;
+			      \item зареждащата програма има задачата да намери свободна памет за всяко помествано задание, е необходима реорганизация на вече използваните раздели, което е невинаги е оптимално;
+			      \item ако няма достатъчно свободна физическа памет за постъпване на нов процес, той ще бъде отложен неопределено;
+			      \item друг много съществен недостатък е неимоверното нарастване на сегментните таблици при увеличаване на размера на паметта
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Кои са CPU структурите, ангажирани с паметта?}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_13.png}
+			\caption{pic. by jurvetson, CC BY 2.0 via creativecommons.org}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Апаратно осигуряване за виртуализация на паметта}
+\frame {
+	\frametitle{Виртуализация: апаратно осигуряване}
+	\begin{itemize}
+		\item Нужно е CPU да разполага с:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item специализиран \textbf{модул за арбитриране (MMU)}, снабден с поне двойка регистри: базов и граничен;
+			      \item набор от \textbf{привилегировани инструкции} за достъп/заявка до услугите на MMU;
+			      \item привилегировани инструкции за \textbf{регистриране и обработка на изключителни ситуации};
+			      \item способност за \textbf{генериране на събития}, сигнализиращи неправомерен или непозволен достъп до паметта и/или защитените регистри;
+			      \item \textbf{прексъване на изпълнявания процес} при детекция на събитие, маркиращо изключителна ситуация
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на MMU}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_5.png}
+			\caption{pic. by Mdjango, Andrew S. Tanenbaum, CC BY-SA 3.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{MMU: еволюционно развитие}
+	\begin{itemize}
+		\item Част от времевата линия на еволюция:
+		      \begin{itemize}
+			      \scriptsize{
+						\item Burroughs B5000 (1961) - една от първите компютрни системи (след Atlas), реализиращи идеята за виртуална памет макар и без обособяването на MMU;
+			      \item IBM System/360 Model 67 (1965) - разчита на отделен хардуерен модул извън системния процесор, който се грижи за транслиране на адресите;
+			      \item Sun-1 - first generation Unix SBC (1982) - пример за едно от първите решения със странично-сегментна организация, включващо и обработка на флагове за защита на данните;
+			      \item Intel i386CXSB (1989) - интегрира MMU в структурата на микропроцесора и разполага с множество възможности за конфигурация;
+			      \item повечето съвременни микропроцесори разполагат с вграден мениджър на паметта (MMU)
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Сегментация: роля на ОС}
+	\begin{itemize}
+		\item Отговорности:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item поддържане на допълнителни управляващи структури за всеки процес, описващи атрибути на привързаните сегменти \textbf{(PCB)};
+			      \item създаване и обслужване на списъци с тези управляващи структури, чрез които паметта се уплътнява оптимално;
+			      \item механизми за поемане на контрол при обработване на отчетена изключителна ситуация от процесора \textbf{(exception handlers)}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Удачно ли е MMU да пази винаги регистрови записи или сегменти таблици?}
+	\end{center}
+\end{frame}
+
+\section{Странично-сегментна организация}
+\frame {
+	\frametitle{Виртуализация: странично-сегментна организация}
+	\begin{itemize}
+		\item Същност:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item вместо сегменти с начало и променлива дължина виртуалното адресно пространство се дели на малки порции с фиксиран размер, наречени \textbf{страници};
+			      \item физическата памет се третира като линеен масив от слотове също с определен размер, наречени \textbf{кадри};
+			      \item адресното транслиране става с помощта на специализирани \textbf{таблици на съответствие (PT)}, генерирани и привързани към управляващите структури на всеки процес;
+			      \item страници от виртуалното адресно пространство могат динамично да се въвеждат и извеждат от основната памет и съхраняват върху привързан носител
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Диаграма на странично-сегментна организация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_6.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/vm-paging.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Механизъм на адресно транслиране}
+	\begin{itemize}
+		\item Стъпки:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item най-простичката възможна форма е \textbf{схема за адресиране с два каталога}: \textbf{директория на таблици} (по една за всеки процес) и реферирана \textbf{таблица на страниците};
+			      \item ОС индексира директорията посредством \textbf{виртуален индекс - (номер) на таблица}, след което локализира запис в таблицата, представен като част от \textbf{линейния виртуален адрес};
+			      \item прочитането на запис в таблицата представя базов физически адрес на съответствие, насочен към номер на физически кадър;
+			      \item финалният физически адрес се получава чрез прибавяне на отместване
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Защо точно механизъм с междинни каталози?}
+	\begin{itemize}
+		\item Стъпки:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item подходът позволява физическата памет да се раздели на по-малки фрагменти с фиксирана дължина, наречени кадри;
+			      \item всеки процес получава референции към тези кадри посредством привъразни таблица на сегментите и таблица на страниците;
+			      \item разделянето на обръщението на две или повече нива позволява по-гъвкаво адресиране на големи обеми памет без това да води до прекомерно нарастване на размера, ако се използва единична таблица;
+			      \item всеки елемент в таблицата на страниците не кореспондира към адрес на дума в паметта, а към регион (кадър) с удачно избрана размерност (4KB), така че да се намали общият брой на референциите без това да доведе обаче до по-съществена фрагментация
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Странично-сегментна организация: MMU}
+	\begin{itemize}
+		\item Различия:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item таблиците със съответствия обикновено се съхраняват също в паметта и могат да са част от виртуалното адресно пространство;
+			      \item MMU се разтоварва от ангажимента да пази големи обеми данни, а обикновено подпомага процедурата по адресна транслация, като ползва междинни каталожни данни от паметта;
+			      \item спомагателен блок от процесора \textbf{(TLB: Translation Lookaside Buffer)} служи за кеширане на вече достъпвани и известни таблични референции
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Примери при i386 и x86\_64}
+\begin{frame}[fragile]
+	\frametitle{Формат на линейно адресиране при i386}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_7.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/vm-paging.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Линейно адресиране при i386}
+	\begin{itemize}
+		\item Размерност на полето за адресиране на страниците:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item 20 бита разредност за виртуален номер на страница, което прави таблица с $ 2^{20} $ максимално възможни записа за всеки процес;
+			      \item ако всеки запис в таблицата реферира дума от по 4 байта и съдържа адрес също с дължина 4 байта, това прави по 4MB таблична структура, необходима за всеки процес в системата, което е неприемливо;
+			            }
+		      \end{itemize}
+		\item Подход за оптимизация:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item за да се редуцира паметта за табличните структури, необходими за обръщение към сегменти от изпълнимия файл със същия размер от 4MB, записите в каталога и таблицата на страниците се редуцират до 1024;
+			      \item 1 запис в сегментната таблица сочи към таблица с 1024 странични референции, всяка от които сочи към регион с размерност 4KB;
+			      \item така за сегмент с дължина, по-малка или равна на 4MB, e необходим само един запис в каталога и съответно една таблица на страниците;
+			      \item \textcolor{red}{размерът на всяка от двете таблици е по 4KB (1024 * 4B) вместо една таблица, заемаща 4MB};
+			      \item допълнителни битови полета са заделени за флагове за проверка на достъпа и нанесена промяна на реферираните данни
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Линейно адресиране при i386}
+	\begin{itemize}
+		\item Описание на полетата:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{PFN} номер на страничен кадър;
+			      \item \textbf{P} - указва дали страницата е заредена;
+			      \item \textbf{R/W} - показва дали е позволено четене/запис;
+			      \item \textbf{U/S} - индикация за режим на работа: потребителски/привилегирован;
+			      \item \textbf{G, PWD, PCD, PAT} - свързани с избор на режим за хардуерно кеширане;
+			      \item \textbf{A} - индикация за направен достъп;
+			      \item \textbf{D} - индикация за направена модификация
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А колко записа в сегментната таблица на едно ниво биха били необходими за представяне на един 4MB изпълним сегмент?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Какво е локалност на данни и адреси?}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{пространствената локалност} описва тендеция изпълнението на поредна инструкция да е обвързано с прочитане на данни от адрес, близък на предходния поради предимно линейния последователен характер на природата на изпълнение на някои функции;
+			      \item \textbf{времевата локалност} се свързва с тендецията за отложен повторен достъп до вече реферирани адреси при обработка на циклични операции например
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Роля на MMU и TLB}
+	\begin{itemize}
+		\item Задачи:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item да се възползват оптимално от \textbf{пространствената} и \textbf{времева} локалност на реферираните от един процес адреси;
+			      \item да подсигурят механизми за буфериране (кеширане) на често достъпвани елементи;
+			      \item да осигурят апаратни възможности за контрол на достъпа и обработка на странични прекъсвания
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{ОС в ролята на диспечер на паметта}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как ОС диспечерира паметта?}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Механизъм на въвеждане и извеждане на страници}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_9.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Page_table}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Механизъм на въвеждане и извеждане на страници}
+	\begin{itemize}
+		\item Същност:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item ОС поддържа вътрешни списъчни структури от данни, чрез които проследява честота на употреба на въведените страници;
+			      \item рядко достъпвани и ползвани страници периодично се извеждат от основната във вторичната памет;
+			      \item при заявка за достъп MMU обслужва събитие по \textbf{странично прекъсване}, което зарежда търсената страница обратно в основната памет;
+			      \item когато процес направи неправомерен достъп до недостъпен виртуален адрес, ОС генерира \textbf{прекъсване за грешка (SIGSEGV)} и преустановява работата на процеса
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Управление на виртуалната памет в Линукс}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А как виртуалната памета се представя в Линукс при x86\_64?}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Карта на виртуалната памет в Линукс при x86\_64}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_8.png}
+			\caption{pic. based on \url{https://www.kernel.org/doc/Documentation/x86/x86_64/mm.txt}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{x86\_64: режим с адресна изолация}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item фиксиран регион е резервиран само за код и данни на ядрото;
+			      \item ядрото традиционно се разполага в най-горните виртуални адреси;
+			      \item текстовата секция на ядрото обикновено се привърза към физически адрес 0;
+			      \item част от виртуалното адресно пространство на ядрото е резевирано за споделена употреба от всички процеси в системата
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Управление на виртуалната памет в Линукс}
+	\begin{itemize}
+		\item Архитектура:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item традиционно се ползват таблици на три (или повече) нива;
+			      \item първото ниво е \textbf{глобална директория на страниците}, чиито записи сочат към междинни справочници;
+			      \item всеки \textbf{междинен каталог} пази ареси на таблици от последващо ниво до достигане на привързана таблица на страниците;
+			      \item таблицата на страниците съдържа показалци към физически адреси на страничните кадри
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Управление на паметта в Линукс: kswapd}
+	\begin{itemize}
+		\item Механизми:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item разчита на \textbf{платформена поддръжка за представяне на състоянието на всяка страница} чрез две битови полета в PTE: \textbf{Accessed (достъп)} и \textbf{Dirty (модификация)} бит;
+			      \item битът за достъп се установява при наличие на операция за четене, писане или изпълнение;
+			      \item битът за модификация е индикация за извършена промяна в съдържанието на страницата;
+			      \item специализиран демон на ядрото \textbf{kswapd} периодично инспектира битовите полета и нулира битовете за достъп;
+			      \item при недостиг на системна памет, kswapd изхвърля страници от първичната памет и ги пренася във вторичната;
+			      \item стари и недостъпвани страници се изхвърлят от паметта приоритетно
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как Линукс оптимизира процеса по изграждане на старнични таблици, когато процес създава свое копие?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Механизъм copy-on-write}
+	\begin{itemize}
+		\item Същност при fork:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item при \textbf{клониране на задание} първоначално Линукс ядрото забранява право на запис върху страниците на процеса родител;
+			      \item в присвоените странични таблици родителят и процесът потомък споделят едни и същи физически кадри;
+			      \item когато някой от двата процеса инициира операция по запис, се тригерира \textbf{странично прекъсване за непозволен достъп (page fault)};
+			      \item в този случай ядрото процедира с направата на частно копие на виртуалната страница, но с вече позволен режим на запис;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Работа с виртуална памет: обобщение}
+	\begin{itemize}
+		\item Предимства:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{адресните пространства на процесите са изолирани}, като достъпът е контролиран;
+			      \item множество програми могат да има странични таблици, рефериращи \textbf{споделен регион физически кадри} (пример: динамични библиотеки);
+			      \item процеси, желаещи да организират споделен достъп до регион в паметта, биха могли да използват специализирани системни извиквания като \textbf{mmap} и \textbf{shmget};
+			      \item колекцията системни инструменти (компилатор и свързващ редактор) не трябва да се грижат за физическата организация на паметта и нейното абсолютно адресиране
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Практически пример}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Практически пример: примерно изследване на изобразените сегменти на една C програма}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Допълнена карта на сегментите}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_10.png}
+			\caption{pic. based on \url{https://linux.die.net/man/3/etext}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Карта на сегментите: продължение}
+	\begin{itemize}
+		\item Обособяват се още:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item сегмент \textbf{страници, принадлежащи на ядрото}, но недостъпни за процеса, чрез които ядрото изпълнява заявени системни извиквания;
+			      \item сегмент \textbf{страници, представящи аргументи на средата и аргументи, предадени чрез команден ред};
+			      \item краят на \textbf{.text}, \textbf{.data} и \textbf{.bss} може да бъде проследен и достъпван чрез три глобални външни за програмата променливи: \textbf{etext}, \textbf{edata} и \textbf{end}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Програмен стек}
+	\begin{itemize}
+		\item Разновидности:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{user}, използван за предаване на аргументи на функции, локални променливи и съхраняване на данни за контекста на всяка функция \textbf{(stack frame)} при верига на изпълнение;
+			      \item \textbf{kernel}, индвидуална област от адресното пространство на ядрото и привързана към процеса, използвана вътрешно за организация на изпълнението на системните извиквания
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Функции за манипулиране на променливи на средата}
+	\begin{itemize}
+		\item Прототипи:
+		      \begin{itemize}
+			      \item \lstinline{char *getenv(const char *name)};
+			      \item \lstinline{int putenv(char *string)};
+			      \item \lstinline{int setenv(const char *name , const char *value , int overwrite)};
+			      \item \lstinline{int unsetenv(const char *name)};
+			      \item \lstinline{int clearenv(void)}
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Динамично заделяне на памет}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item Линукс следва \textbf{оптимистична стратегия на заделяне на памет}, като при успешен изход от malloc, не се гарантира, че паметта ще е реално достъпна или налична;
+			      \item при недостиг на системна физическа памет се активира демонът за терминиране на процеси \textbf{(OOM killer)};
+			      \item контрол по управление на степента на натовареност на основната и вторичната памет се задават чрез: \textbf{/proc/sys/vm/overcommit\_memory} и \textbf{/proc/sys/vm/oom\_adj}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Динамично преместване на сегменти}
+	\begin{itemize}
+		\item Налага се, когато:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item се заявяват региони споделена памет с помощта на системни извиквания като mmap;
+			      \item нова област динамично заделена памет се изисква при промяна на \textbf{brk}, \textbf{sbrk (маркиращи края на сегмента с неинициализирани данни)} или malloc;
+			      \item стекът надвиши предходно установен и позволен предишен размер
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Още помощни функции}
+	\begin{itemize}
+		\item Данни за размерите биха могли да се извлекат чрез:
+		      \begin{itemize}
+			      \item \lstinline{int getpagesize(void)} - \scriptsize{архитектурно-специфична, връща стойността на \textbf{PAGE\_SIZE} макродефиницята на ядрото};
+			      \item \lstinline{int getrlimit(int resource, struct rlimit *rlim)} - \scriptsize{опит за прочитане на системно зададени: \textbf{размер на стек}, \textbf{макс. размер на даннов сегмент}, \textbf{макс. размер на присвоеното виртуално адресно пространство} и др.}
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Извличане на спомагателни данни чрез procfs}
+	\begin{itemize}
+		\item Пример:
+		      \begin{itemize}
+			      \scriptsize {
+			      \item \textbf{cat /proc/\textless pid\textgreater/status}
+			            }
+		      \end{itemize}
+		\item Пояснение на някои важни записи::
+		      \begin{itemize}
+			      \scriptsize {
+			      \item \textbf{State}: показва текущо състояние;
+			      \item \textbf{VmPeak}: върхово достигната виртуална памет;
+			      \item \textbf{VmSize}: текущ размер на виртуаланата памет;
+			      \item \textbf{VmData}: размер на данновия сегмент;
+			      \item \textbf{VmStk}: размер на потребителския програмен стеков сегмент;
+			      \item \textbf{VmExe}: размер на текстови сегмент;
+			      \item \textbf{VmLib}: размер на сегмент за изобразяване на динамични библиотечни референции;
+			      \item \textbf{VmPTE}: размер на записите в страничната таблица (PTE);
+			      \item \textbf{Threads}: брой на текущо активни нишки, подчинени на главния процес
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Статистика за разпределение и ползване на паметта}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.9\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.35\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_5/lst_1.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\frame {
+	\frametitle{Детайлен анализ на сегментите чрез procfs}
+	\begin{itemize}
+		\item Пример:
+		      \begin{itemize}
+			      \scriptsize {
+			      \item \textbf{cat /proc/\textless pid\textgreater/maps}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Пример при активен процес}
+	% Set the position here
+	\begin{minipage}[t][.9\textheight][t]{.99\textwidth}
+		\begin{block}{}
+			% Set the zoom level here
+			\begin{adjustbox}{width=\textwidth,height=.4\textheight,keepaspectratio}
+				\scriptsize{
+					\lstinputlisting[language=bash]{listings/lec_5/lst_2.txt}
+				}
+			\end{adjustbox}
+		\end{block}
+	\end{minipage}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Разяснение на извежданите данни}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_5/fig_11.png}
+			\caption{pic. based on \url{https://man7.org/linux/man-pages/man5/proc.5.html}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Флагове, обозначаващи позволени операции}
+	\begin{itemize}
+		\item Описание:
+		      \begin{itemize}
+			      \scriptsize {
+			      \item \textbf{r} - разрешено е четене;
+			      \item \textbf{w} - разрешен е запис;
+			      \item \textbf{x} - позволено е изпълнение;
+			      \item \textbf{p} - ограничен за собствен достъп (несподелен) сегмент;
+			      \item \textbf{s} - сегмент, обявен за споделен
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://search.creativecommons.org/}
+		\item \url{https://en.wikipedia.org/wiki/Instruction_cycle}
+		\item \url{https://en.wikipedia.org/wiki/Virtual_memory}
+		\item \url{https://en.wikipedia.org/wiki/Page_table}
+		\item \url{https://en.wikipedia.org/wiki/Memory_management_unit}
+		\item \url{https://pages.cs.wisc.edu/~remzi/OSTEP}
+		\item \url{https://man7.org/linux/man-pages/man2/sbrk.2.html}
+		\item \url{https://www.linux.com/training-tutorials/fiddling-linux-processes-memory/}
+		\item \url{https://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_zSeries/x2251.html}
+		\item \url{https://en.wikipedia.org/wiki/Kernel_page-table_isolation}
+		\item \url{https://software.intel.com/content/dam/develop/external/us/en/documents-tps/325462-sdm-vol-1-2abcd-3abcd.pdf}
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+
