@@ -424,7 +424,7 @@
 		T_{turnaround} = T_{completion} - T_{arrival}
 	\end{equation}
 	\begin{equation}
-		T_{turnaround} = T_{first run} - T_{arrival}
+		T_{response} = T_{first run} - T_{arrival}
 	\end{equation}
 \end{frame}
 
