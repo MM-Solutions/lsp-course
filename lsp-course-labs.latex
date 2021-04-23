@@ -655,24 +655,68 @@ $ git show COMMIT
     \item Защо обаче \verb|man 2 pipe2| не приема аргумент за команда, която да изпълни?
      \begin{itemize}
       \item Защото създаването на нов процес е отделен syscall: \verb|man 2 fork|
-      \item Защото изпълнението на нова програма е отделен syscall: \verb|man 3 execl|
+      \item Защото изпълнението на нова програма е отделен syscall: \verb|man 3 execlp|
       \item Защото задаването на stdout и stdin са под контрола на процеса: \verb|man 2 dup2|
      \end{itemize}
   \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{ Задача }
+  \frametitle{ Задача 1 }
   \begin{itemize}
     \item Преправете задачата от предишното упражнение да смята сумата от две числа използвайки външна програма.
     \item Съвет: \verb@echo "2+3" | bc@
-    \item Съвет: Препоръчителна последователност:
+    \item Препоръчителна последователност:
      \begin{itemize}
-       \item Създайте тръба с \verb|man 2 pipe2|.
+       \item Създайте тръба към \verb|stdin| на \verb|bc| използвайки \verb|man popen|.
+       \item Запишете израза за смятане като данни във върнатия \verb|FILE *|.
+     \end{itemize}
+    \item Забележете, че пренасочихме \verb|stdin| на \verb|bc| към \verb|FILE *| на нашия процес.
+    \item \verb|stdout| на \verb|bc| се наслядава от parent процеса, и е изхода на терминала.
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача 2 - подготовка}
+  \begin{itemize}
+    \item Извикайте външна програма, например \verb|/bin/ls|, от ваша С програма.
+    \item Препоръчителна последователност:
+     \begin{itemize}
+       \item Създайте нов процес с \verb|man 2 fork|.
+       \item В новия child процес изпълнете \verb|/bin/ls| използвайки \verb|man execlp|.
+     \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача 2 с повишена трудност}
+  \begin{itemize}
+    \item Преправете задачата от предишното упражнение да смята сумата от две числа използвайки външна програма.
+    \item Прихванете както \verb|stdin|, така и \verb|stdout| на външната програма.
+    \item Съвет: Ще се наложи да направите две тръби към и от \verb|bc|.
+    \item Препоръчителна последователност:
+     \begin{itemize}
+       \item Създайте две тръби с \verb|man 2 pipe2|. Една, за да се свържете със стандартния вход на \verb|bc|, и една за да се свържете със стандартния изход на \verb|bc|.
        \item Създайте нов процес с \verb|man 2 fork|.
        \item Задайте вход/изход на child процеса да са file descriptors от тръбата. Използвайте \verb|man stdout| , \verb|man 2 dup2|
      \end{itemize}
-    \item Публикувайте нов GIT branch за промяната.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача 2 с повишена трудност}
+  \begin{itemize}
+    \item Трябва да сте получили 4 file descriptors. По два за всяка тръба.
+    \item В child процеса сменете stdin/stdout с файлови дескриптори от двете тръби. Пример:
+\begin{lstlisting}
+int P1[2];
+pipe(P1);
+....
+/* Replace stdin with P1[0] for current process. */
+dup2(P1[0], STDIN_FILENO);
+\end{lstlisting}
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
   \end{itemize}
 \end{frame}
 
@@ -691,19 +735,17 @@ $ cat /proc/self/maps
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{ Задача }
+  \frametitle{ Задача 1 }
   \begin{itemize}
-    \item Реализирайте двоично търсене на дума в речник.
-    \item Използвайте файла \verb|/usr/share/dict/words| за входни данни.
+    \item Реализирайте програма за разпечатка на текстов файл, подобно на \verb|cat|.
     \item Използвайте \verb|man 2 mmap| за достъп чрез указател до файла.
     \item Използвайте \verb|man 2 fstat| за да узнаете колко е голям файла.
-    \item Съвет: Започнете с реализация на четене на файл използвайки \verb|mmap|, подобно на командата \verb|cat|. След това преминете към реализация на двоичното търсене.
-    \item Публикувайте нов GIT branch за промяната.
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
   \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{ Задача - допълнение }
+  \frametitle{ Задача 1 - допълнение }
   \begin{itemize}
     \item Разпечатайте адреса, върнат от \verb|mmap| посредством printf.
     \item Забавете програмата с \verb|usleep| или \verb|getchar|.
@@ -711,12 +753,56 @@ $ cat /proc/self/maps
   \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile]
+  \frametitle{ Задача 2 }
+  \begin{itemize}
+    \item Реализирайте двоично търсене на дума в речник.
+    \item Използвайте файла \verb|/usr/share/dict/words| за входни данни.
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
+  \end{itemize}
+\end{frame}
+
 \subsection { Strace. Syscalls, ioctl. }
 \begin{frame}[fragile]
   \frametitle{ strace }
   \begin{itemize}
-    \item TODO.
+    \item Изпълнете задачата от упражнението с \verb|mmap| използвайки \verb|strace|.
+    \item Изпълнете задачата от упражнението с \verb|pipe2| използвайки \verb|strace -f|.
+    \item Отбележете кои \verb|syscalls| използват вашите програми.
   \end{itemize}
+\end{frame}
+
+\frametitle{ strace }
+\begin{frame}[fragile]
+  \begin{itemize}
+    \item Изпълнете задачата от упражнението с \verb|make| използвайки \verb|strace|.
+    \item Защо дори и за елементарна \verb|"Hello, world!"| програма се извиква \verb|mmap|?
+    \item Компилирайте същата програма със \verb|-static| параметър на свързващия редактор. Все още ли се извиква \verb|mmap|?
+  \end{itemize}
+\end{frame}
+
+\frametitle{ ioctl }
+\begin{frame}[fragile]
+  \begin{itemize}
+    \item TODO
+    \item \verb|man ioctl|
+    \item \verb|man ioctl_list|
+  \end{itemize}
+\end{frame}
+
+\frametitle{ strace }
+\begin{frame}[fragile]
+  \begin{itemize}
+    \item \verb|strace| може да се използва за изследване при липса на изходен код.
+    \item Изпълнете следните команди, и си припомнете упражнението с \verb|/proc|. 
+  \end{itemize}
+\begin{lstlisting}
+# List all processes, and write
+# strace output (stderr) to out.txt
+$ ps aux 2>out.txt
+# Check which files were accessed
+$ grep '^open' out.txt
+\end{lstlisting}
 \end{frame}
 
 
