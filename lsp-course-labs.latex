@@ -763,15 +763,6 @@ $ cat /proc/self/maps
 \end{frame}
 
 \subsection { Strace. Syscalls, ioctl. }
-\begin{frame}[fragile]
-  \frametitle{ strace }
-  \begin{itemize}
-    \item Изпълнете задачата от упражнението с \verb|mmap| използвайки \verb|strace|.
-    \item Изпълнете задачата от упражнението с \verb|pipe2| използвайки \verb|strace -f|.
-    \item Отбележете кои \verb|syscalls| използват вашите програми.
-  \end{itemize}
-\end{frame}
-
 \frametitle{ strace }
 \begin{frame}[fragile]
   \begin{itemize}
@@ -781,17 +772,17 @@ $ cat /proc/self/maps
   \end{itemize}
 \end{frame}
 
-\frametitle{ ioctl }
 \begin{frame}[fragile]
+  \frametitle{ strace }
   \begin{itemize}
-    \item TODO
-    \item \verb|man ioctl|
-    \item \verb|man ioctl_list|
+    \item Изпълнете задачата от упражнението с \verb|mmap| използвайки \verb|strace|.
+    \item Изпълнете задачата от упражнението с \verb|pipe2| използвайки \verb|strace -f|.
+    \item Отбележете кои \verb|syscalls| използват вашите програми.
   \end{itemize}
 \end{frame}
 
-\frametitle{ strace }
 \begin{frame}[fragile]
+\frametitle{ strace }
   \begin{itemize}
     \item \verb|strace| може да се използва за изследване при липса на изходен код.
     \item Изпълнете следните команди, и си припомнете упражнението с \verb|/proc|. 
@@ -803,6 +794,35 @@ $ ps aux 2>out.txt
 # Check which files were accessed
 $ grep '^open' out.txt
 \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+ \frametitle{ ioctl }
+  \begin{itemize}
+    \item \verb|ioctl| е механизъм за настройване на параметри на device файлове или други специални файлове.
+    \item \verb|ioctl| приема като аргумент файлов дескриптор.
+    \item \verb|man ioctl|
+    \item \verb|man ioctl_list|
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача 2 }
+  \begin{itemize}
+    \item Реализирайте програма за четене размерите на текущия терминал.
+    \item \verb|man 2 ioctl_tty|.
+    \item Изпълнете \verb|ioctl| \verb|TIOCGWINSZ| върху файл \verb|/dev/tty|.
+    \item Изпробвайте с различни размери на Вашия терминален прозорец.
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{ ioctl/strace }
+  \begin{itemize}
+    \item Проследете програмата с \verb|ioctl| използвайки \verb|strace|.
+    \item Открийте добавения от Вас \verb|ioctl| в изхода.
+  \end{itemize}
 \end{frame}
 
 
