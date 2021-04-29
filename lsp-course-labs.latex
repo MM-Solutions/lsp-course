@@ -45,7 +45,7 @@
   \def\svgwidth{5cm}
   \input{./images/Logo_MMS_svg.pdf_tex}
 }
-\date{14.04.2021}
+\date{21.04.2021}
 
 
 \begin{document}
@@ -681,8 +681,8 @@ $ git show COMMIT
 \begin{frame}[fragile]
   \frametitle{ mmap }
   \begin{itemize}
-    \item Магия, чрез която данни от диска се появяват в оперативната памет на процеса.
-    \item Същата магия се използва за зареждане на динамични библиотеки:
+    \item Kak данни от диска се появяват в оперативната памет на процеса?
+    \item Същият механизъм се използва за зареждане на динамични библиотеки:
 \begin{lstlisting}
 $ cat /proc/self/maps
 \end{lstlisting}
@@ -697,7 +697,17 @@ $ cat /proc/self/maps
     \item Използвайте файла \verb|/usr/share/dict/words| за входни данни.
     \item Използвайте \verb|man 2 mmap| за достъп чрез указател до файла.
     \item Използвайте \verb|man 2 fstat| за да узнаете колко е голям файла.
+    \item Съвет: Започнете с реализация на четене на файл използвайки \verb|mmap|, подобно на командата \verb|cat|. След това преминете към реализация на двоичното търсене.
     \item Публикувайте нов GIT branch за промяната.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача - допълнение }
+  \begin{itemize}
+    \item Разпечатайте адреса, върнат от \verb|mmap| посредством printf.
+    \item Забавете програмата с \verb|usleep| или \verb|getchar|.
+    \item Сравнете адреса с \verb|cat /proc/PID/maps|
   \end{itemize}
 \end{frame}
 
