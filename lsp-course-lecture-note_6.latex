@@ -1,0 +1,931 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+\usepackage{mathtools}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={C},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Мултипрограмиране и паралелни процеси. Взаимно изключване.}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{15.04.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item разшири представите ни за \textbf{многозадачност} и \textbf{паралелна обработка};
+			      \item дефинира какво е \textbf{поток (нишка)} от изпълнявани инструкции;
+			      \item какви са предизвикателствата при обезпечаването на среда за изпълнение на множество процеси;
+			      \item опише как ОС подсигурява създаването и управлението на подпроцеси (нишки) в един процес;
+			      \item разясни какво са понятията \textbf{мъртва хватка} и \textbf{критична секция};
+			      \item представи накратко основни алгоритми за \textbf{взаимно изключване} на процеси;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Многозадачност и паралелизъм}
+	\begin{itemize}
+		\item Дефиниция за \textbf{паралелни задачи}:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item две или повече програмни приложения (процеса), изпълняващи се едновременно (или с времеделене) върху един или повече от един процесора или процесорни ядра;
+			      \item всяко едно от тези приложения би могло да включва в състава си един или повече потоци инструкции, диспечерирани от ОС
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Многозадачност и мултипрограмиране}
+\frame {
+	\frametitle{Модел с множество процеси}
+	\begin{itemize}
+		\item Предпоставки:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item по-пълно оползотворяване на престояващите изчислителни блокове след иницииране на входно-изходни операции, които са съпроводени със значителна латентност;
+			      \item необходимост от провеждане на самостоятелни по своя характер обработки, ангажиращи различни звена от системата (например: декодиране на мултимедиен поток от DSP и обмен на данни по Интернет);
+			      \item необходимост от ускоряване на изпълнението на програма чрез разделянето \'и на припокриващи се подзадачи, които биха могли да се изпълнят едновременно;
+			      \item едновременно обслужване на заявки от множество потребители на системата
+			            }
+		      \end{itemize}
+		\item Системни и потребителски задачи:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{системни} са тези, които са ангажирани с управлението на системните ресурси и са част от структурата на ОС;
+			      \item \textbf{потребителски}, които получават предварително зададени системни активи и се развиват под контрола на ОС
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Парарелни процеси}
+	\begin{itemize}
+		\item Разновидности:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{независими} - функционират без пряко взаимодействие и споделяне на данни помежду си;
+			      \item \textbf{обвързани} - чието изпълнение и развитие във времето е свързано с ползване на общ ресурс, потребност от синхронизация, комуникация и/или ползване на споделени данни
+			            }
+		      \end{itemize}
+		\item Типове свързани задания:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{коопериращи} се - при които резултатът от работата на един процес оказва влияне върху функциите на други;
+			      \item \textbf{конкуриращи} се - при които има явно или индиректно съревнование за достъп до споделени апаратни и/или програмни средства
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Многозадачност и мултипрограмиране}
+	\begin{itemize}
+		\item Смислово разграничаване:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item исторически \textbf{многозадачността} се свързва с редуващото се във времето последователно превключване на процесора между няколкоко активни програми (чрез диспечериране с времеделене);
+			      \item \textbf{мултипроцесната} или \textbf{мултипрограмна} обработка - разпаралеляването на няколко задания се извършва върху система, снабдена с няколко процесора или процесорни ядра
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Архитектури, обезпечаващи среда за мултипрограмиране}
+	\begin{itemize}
+		\item Примери:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item \textbf{SIMD} - единичен поток от еднотипни инструкции, приложени върху множество потоци от данни - т.нар. \textbf{векторни процесори};
+			      \item \textbf{MIMD} - множество потоци от различни инструкции върху множество потоци от данни - т.нар. \textbf{мултипроцесори}, \textbf{мултикомпютри} и \textbf{клъстери} според организацията на паметта и топологията на свързване
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{SIMD и MIMD: схематично представяне}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.70\textheight, keepaspectratio]{images/lec_6/fig_1.png}
+			\caption{pic. based on work by Vadikus, CC BY-SA 4.0 via Wikimedia Commons}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\section{Програмни модели за многозадачна работа}
+\frame {
+	\frametitle{Програмни модели за мултипрограмиране}
+	\begin{itemize}
+		\item Модел \textbf{клиент-сървър (client-server)}, състоящ се от:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item компонент \textbf{сървър}, специализиран процес, отговорен за управлението на достъпа до споделен ресурс като процесор, файлова система или периферни устройства;
+			      \item един или множество \textbf{клиенти}, представящи логически обекти, асоциирани с действителни потребители или техните процеси, които обслужват заявки за определена услуга;
+			      \item процесите, изобразяващи клиентските и сървърни инстанции, би могло да се развиват и самостоятелно в отделни логически адресни пространства
+			            }
+		      \end{itemize}
+		\item Модел \textbf{родител-работници (worker-threads)}:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item родителският процес и потомците се развиват паралелно и се кооперират, но споделят \textbf{общо адресно пространство}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Програмни модели: илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.70\textheight, keepaspectratio]{images/lec_6/fig_3.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Remote_procedure_call}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Модел клиент-сървър}
+	\begin{itemize}
+		\item Недостатъци:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item централен сървър процес, който приема заявки и ги диспечерира посредством процеси-работници;
+			      \item всеки от новосъздадените процеси се разполага в отделна област на адресното пространство и консумира допълнителна памет и изчислителни ресурси;
+			      \item комуникацията с главния процес се усложнява в зависимост от модела на работа с паметта (сегменти споделена памет) и механизмите за синхронизация и обмен на съобщения
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Какъв подход се прилага за облекчаване част от описаните недостатъци?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Модел с потоци или нишки}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item обособен \textbf{поток от инструкции}, поместен в границите на същото адресно пространство, което е присвоено и на процеса притежател;
+			      \item всеки процес притежава най-малко един основен поток от инструкции и нула или повече допълнителни потоци
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Многозадачност чрез нишки}
+\frame {
+	\frametitle{Многозадачност чрез нишки}
+	\begin{itemize}
+		\item Изпълняват се потоци от инструкции, чрез които:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item една задача може да се разпаралели на припокриващи се успоредно изпълнявани подзадания (вкл. провеждане на входно-изходни операции);
+			      \item породените нишки споделят общо адресно пространство с родителския процес (включително референции към глобални променливи, списък от налични експортирани функции и др.), което елиминира необходимостта от нови таблични структури и записи на странични съответствия;
+			      \item превключването на контекста се опростява, като се премахва изискването за зареждане на нова странична таблица при всяко превключване
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Многопоточно изпълнение}
+	\begin{itemize}
+		\item Организацията на изобразяваните сегменти налага:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item представяне на всеки поток от инструкции чрез независим стеков сегмент с поддръжка на привързани регистрови структури: програмен брояч или указател на текущо изпълнявана инструкция (PC: program counter);
+			      \item спомагателни структури данни, представящи състоянието на всяка нишка и ползвани от ОС за управление \textbf{(TCB - Thread Control Block - може да бъде аналогичен и на Process Control Block в някои ОС)}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Многопоточно изпълнение: карта на паметта}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.70\textheight, keepaspectratio]{images/lec_6/fig_2.png}
+			\caption{pic. based on \url{https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Предизвикателства в мултипрограмирането}
+	\begin{itemize}
+		\item За системните архитекти:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item проектиране на ОС, така че да се подсигури съвкупност от задачи с оптимално системно натоварване без прекомерно разходване на ресурси;
+			      \item оптимизиране на апаратните компоненти и постигане на ефикасен паралелизъм: както по отношение на достъпваните данни, така и по отношение на изпълняваните инструкции;
+			      \item разработване на механизми за надеждна междупроцесна комуникация и синхронизация при работа с множество процеси и потоци;
+			      \item предоставяне на усъвършенствани програмни средства за профилиране и отстраняване на дефекти
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Предизвикателства в мултипрограмирането: продължение}
+	\begin{itemize}
+		\item За софтуерните разработчици:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item идентифициране на елементи от едно задание, които подлежат на разпаралеляване;
+			      \item разрешаване на зависимости между подзадачите и гарантиране интегритет на обработваните данни;
+			      \item постигане на безпроблемна програмна синхронизация между коопериращите се и съревноваващи се процеси или нишки;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Многопоточен програмен модел: реализация}
+	\begin{itemize}
+		\item Модел \textbf{много-към-едно (many-to-one)}:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item множество нишки в рамките на един процес са привързани към една системна нишка в контекста на ядрото, като последната подсигурява изпълнението на заявените системни извиквания от страна на ОС;
+			      \item управлението на многозадачната работа в потребителското пространство е поверено на системна библиотека, но обръщението към една нишка в ОС прави невъзможно действително хардуерно разпаралеляване;
+			      \item всяко блокиращо системно извикване блокира и останалите логически нишки
+			            }
+		      \end{itemize}
+		\item Модел \textbf{едно-към-едно (one-to-one)} и \textbf{много-към-много (many-to-many)}:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item за всеки потребителски поток ОС създава и привързва отделна системна нишка на ядрото, която е входна точка за обработване на системни извиквания;
+			      \item механизмът на съответствие може да е статичен или да повери на диспечера на процеси да преразпределя асоциациите
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Илюстрация на описаните модели}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.70\textheight, keepaspectratio]{images/lec_6/fig_4.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Thread_(computing)}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Какъв е подходът, ползван в Линукс? Има ли ограничение за максималния брой създавани нишки?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Фактори, усложняващи комуникацията и синхронизацията}
+	\begin{itemize}
+		\item Открояват се:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item диспечерът на ОС е в състояние да прекъсне и временно преустанови изпълняван процес или поток по всяко време;
+			      \item достъпът до споделени данни или сегменти памет създава предпоставки за нежелани изменения в среда с множество потоци;
+			      \item множество коопериращи или конкуриращи се процеси или потоци се съревновават за изпълнение и ползване на системни ресурси
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Състезание между процеси}
+\frame {
+	\frametitle{Какво е състезание между процеси или потоци?}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item ситуация, която възниква при неопределено във времето изпълнение на множество потоци от инструкции и при която крайният резултат от обработките не е предвидим и дефиниран
+			            }
+		      \end{itemize}
+		\item Пример:
+		      \begin{itemize}
+			      \scriptsize{
+			      \item един процес или нишка извършва операции по четене на споделени данни, а в същия този момент друг процес или нишка прави изменение на съдържанието на общодостъпните референции данни без наличие на синхрон
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Защо е възможна появата на неочаквано или нежелано състезание? Не са ли всички инструкции апаратно синхронизирани? Достъпът и обновяването на паметта не настъпват ли мигновено?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Възникване на междупроцесни състезания}
+	\begin{itemize}
+		\item Предпоставки:
+		      \begin{itemize}
+			      \scriptsize{
+							\item асинхронна природа на диспечериране и хардуерно обслужване на програми, обвързано с разпределяне на процесора или присвояваните ядра;
+							\item конвейерна природа на извличане, изпълнение на инструкции и вътрешната им имплементация в рамките на дадена микроархитектура;
+							\item наличие на вътрешно буфериране на стойности и управление на йерархични каталожни структури в процеса на виртуализация на паметта;
+							\item странично-сегментна организация на паметта с възможност за обособяване на споделени сегменти и реферирането им от различни потоци
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Състезание на процеси: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_6/fig_5.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Race_condition}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Междупроцесно съревнование: пример}
+	\begin{itemize}
+		\item Коопериращи се процеси или потоци, като:
+		      \begin{itemize}
+			      \scriptsize{
+							\item единият прочита съдържанието на общодостъпна целочислена променлива и го увеличава с константа;
+							\item вторият инициира аналогично четене, но намалява съдържанието на променливата с различна константа;
+			            }
+		      \end{itemize}
+		\item Крайният резултат зависи от:
+		      \begin{itemize}
+			      \scriptsize{
+							\item действителния ред на изпълнение на операциите във времето;
+							\item представянето на тези операции в последователности от регистрови обработки, като не се гарантира, че една логическа програмна инструкция ще съответства на и ще се реализира физически от една процесорна инструкция
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Пояснение към примера}
+	\begin{itemize}
+		\item Нека се фокусираме върху прочитането на споделена променлива:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \lstinline{int a = 20;}
+							\item \lstinline{int res = a + 10;}
+			            }
+		      \end{itemize}
+		\item Изчислението би могло да се представи чрез следната поредица инструкции:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \lstinline{mov 0xfff9a1c, \%eax}
+							\item \lstinline{add \$0xA, \%eax}
+							\item \lstinline{mov \%eax, 0xfff9a1c}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Време за демонстрация с опростена тестова програма...}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Особености при модел със състезание}
+	\begin{itemize}
+		\item Резултат при състезание:
+		\begin{itemize}
+			\scriptsize{
+				\item резултатът от обработката е \textbf{недетерминиран} и зависи от действителното асинхронно развитие на потоците във времето
+						}
+		\end{itemize}
+		\item Недетерминираността се дължи на:
+		      \begin{itemize}
+			      \scriptsize{
+							\item характера на избор на активна задача от страна на системния диспечер и неговият алгоритъм на работа;
+							\item неопределените моменти на изпълнение на системните извиквания и съпътстващите ги превключвания на контекста;
+							\item статистически параметри на цялостния програмен товар, обслужван от системата във времето
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Какво провокира програмно състезание?}
+	\begin{itemize}
+		\item Същност:
+		      \begin{itemize}
+			      \scriptsize{
+							\item наличие на последователност от обработки, принадлежащи на повече от една програмни нишки, които достъпват конкурентно споделен ресурс (променлива или обща памет в описания пример)
+							\item регионът от кода, обвързан с манипулиране на споделения ресурс, се нарича \textbf{критична секция}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как да се предпазим от нежелани съревнования?}
+	\end{center}
+\end{frame}
+
+\section{Критична секция и взаимно изключване на процеси}
+\frame {
+	\frametitle{Критична секция и взаимно изключване}
+	\begin{itemize}
+		\item Същност:
+		      \begin{itemize}
+			      \scriptsize{
+							\item защитен срещу едновременно паралелно изпълнение регион от инструкции с операции по четене и/или промяна на споделени данни;
+							\item оригиналната дефиниция на това понятие се приписва на Edsger Dijkstra (с референция към статията: "Cooperating Sequential Processes", 1968, \url{https://www.cs.utexas.edu/users/EWD/transcriptions/EWD01xx/EWD123.html})
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Техника на взаимно изключване на процеси}
+	\begin{itemize}
+		\item Условия за \textbf{взаимното изключване (mutual exclusion)}:
+		      \begin{enumerate}
+			      \scriptsize{
+							\item само един процес може да се намира в критичната секция след като е получил достъп, а останалите са задължени да изчакат;
+							\item допуска се, че оторизираният процес може да престои в критичната секция крайно време;
+							\item предполага се, че състезаващите се за достъп потоци също биха получили възможност да влязат в защитената секция за крайно време, но само чрез редуване;
+							\item изборът на следващ допускан процес се прави само измежди престояващите в очакване, които не изпълняват в момента код, принадлежащ на критичната секция
+			            }
+		      \end{enumerate}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Взаимно изключване: илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.70\textheight, keepaspectratio]{images/lec_6/fig_6.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Mutual_exclusion}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Потенциални проблеми за разрешаване}
+	\begin{itemize}
+		\item При нарушение на описаните условия би могло да възникне:
+		      \begin{itemize}
+			      \scriptsize{
+							\item при нарушение на 2. - взаимно блокиране, известно като \textbf{мъртва хватка (deadlock)};
+							\item при неистинност на 3. - \textbf{безкрайно отлагане}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Мъртва хватка}
+\frame {
+	\frametitle{Възникване на мъртва хватка}
+	\begin{itemize}
+		\item Възможни причини:
+		      \begin{itemize}
+			      \scriptsize{
+							\item взаимно блокиране между процеси чрез последователно заемане на блокиращ ресурс, който никой не освобождава;
+							\item некооперативен процес, който се отлага безкрайно и не позволява други да навлезат в заета критична секция;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Мъртва хватка: илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_6/fig_7.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Deadlock}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Отговорности на ОС при мултипрограмиране}
+	\begin{itemize}
+		\item Включват:
+		      \begin{itemize}
+			      \scriptsize{
+							\item предоставяне на средства \textbf{(синхронизационни примитиви)} за групиране на блок операции в критична секция или атомарна защитена транзакция;
+							\item снабдяване с механизми за целесъобразна междупроцесна комуникация и координация;
+							\item използване на апаратни и програмни средства за управление на конкуриращи се паралелни процеси и потоци
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Подходи за осигуряване на взаимно изключване}
+\frame {
+	\frametitle{Възможни подходи за взаимно изключване}
+	\begin{itemize}
+		\item Възможности:
+		      \begin{itemize}
+			      \scriptsize{
+							\item подход с \textbf{монополизиране на процесора} и предотвратяване на паралелно изпълнение на блок от операции върху други ядра или процесори в рамките на критичната секция (атомарни операции и ползване на специализирани инструкции);
+							\item подход с \textbf{блокировка и арбитраж на паметта} в рамките на критичната секция, реализирани отново чрез специфична апаратна поддръжка и набор от инструкции;
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А какви алгоритми за взаимно изключване съществуват?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Взаимно изключване на два процеса}
+	\begin{itemize}
+		\item Алгоритъм на Peterson:
+		      \begin{itemize}
+			      \scriptsize{
+							\item разработен от Gary Lynn Peterson, изследовател и учен в областта на компютърните науки;
+							\item ползва масив от Булеви флагове, обозначаващи готовност за всеки от двата конкуриращи се потока;
+							\item целочислена променлива, която пази реда на следващия позволен за изпълнение процес;
+							\item поток, желаещ да навлезе в критична секция, установява своя Булев флаг на истинна стойност и записв в реда индекса на конкурента;
+							\item след изпълнение на обработката и изход от критичната секция всеки процес съхранява в своя Булев флаг стойност неистина;
+							\item така се подсигурява, че всеки от чакащите процеси ще получи шанс да манипулира ексклузивно споделените данни
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Алгоритъм на Peterson: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_6/fig_8.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Peterson\%27s_algorithm}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Време за демонстрация: пример с имплементация на алогиритъма на Peterson}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Взаимно изключване на n процеса}
+	\begin{itemize}
+		\item Bakery алгоритъм:
+		      \begin{itemize}
+			      \scriptsize{
+							\item развит от Leslie Lamport, разработчик на \LaTeX\ и изследовател в областта на разпределените системи;
+							\item всеки от конкуриращите се процеси получава номер в нарастваща последователност при заявка за достъп до споделен ресурс;
+							\item ако два процеса получат еднакъв номер, приоритет се дава на потока с по-малък системен идентификатор;
+							\item с приоритет в критичната секция навлиза потокът с най-малък разпределен номер или съобразно подхода за разрешаване на конфликт;
+							\item предвид нарастващите почти уникални идентификатори, алгоритъмът е детерминиран
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Практическа част: запознаване с Posix Threads}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Практическа част: представяне на потоците в Линукс, примери с Posix Threads (libpthread).}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Разграничение между процеси и потоци в Линукс}
+	\begin{itemize}
+		\item Имплементация:
+		      \begin{itemize}
+			      \scriptsize{
+							\item в Линукс ОС се прилага модел на съответствие \textbf{едно-към-едно} в изобразяването на потребителски процес в процес на ниво ядро;
+							\item не се прави съществена разлика в третирането на потоци и процеси;
+							\item всеки поток се третира като \textbf{LWP (Light Weight Process)} олекотен процес, като потоците също се представят с помощта на процеси в ядрото;
+							\item една потребителска програма е в състояние да поражда и развива множество потоци, като в този случай асоциираните процеси в ядрото споделят един и същи \textbf{групов идентификатор (TGID - thread group identifier)}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Състояния на процесите в Линукс}
+	\begin{itemize}
+		\item Пояснение:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \textbf{Sleeping/Waiting} - (в очакване) или спящи с две разновидности: (interruptible) очакващи програмно прекъсване посредством сигнал или (uninterruptible), които са ангажирани с провеждане на входно-изходна операция или в очакване на апаратно прекъсване;
+							\item \textbf{Running} - (в готовност) като в тази категория попадат готовите за изпълнение и изпълняващите се задачи;
+							\item \textbf{Stopped} - (преустановен), приведен в това състояние посредством сигнал SIGSUSP и по-късно възобновен чрез обработване на сигнал SIGCONT;
+							\item \textbf{Zombie} - (зомби), процес, който е привършил работа, но поради нарушена верига на комуникация или взаимодействие с други процеси неговият контролен блок за управление все още се намира в структурите данни на ОС
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Какви програмни средства съществуват за разработка на многопотокови програми?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Въведение в Posix threads}
+	\begin{itemize}
+		\item Защо Posix threads и pthread библиотека?
+		      \begin{itemize}
+			      \scriptsize{
+							\item разрешава проблема с грижа за особеностите и различията, свързани с апаратната поддръжка на процеси и потоци на ниво микроархитектура;
+							\item въвежда стандартизиран програмен интерфейс и набор от API функции за имплементиране на многопоточна функционалност;
+							\item предоставя ефикасна среда за олекотено създаване на нишки, които споделят общо адресно пространство с основния пораждащ процес без утежнения при работа със споделена памет;
+							\item освобождава разработчиците от познаване на спецификите и детайлите на поддържаните от ОС системни извиквания за многопоточна работа;
+							\item за UNIX подобните и съвместими ОС Pthreads интерфейсът е стандартизиран като част от \url{https://standards.ieee.org/standard/1003_1-2008.html}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Pthreads: категории налични функции}
+	\begin{itemize}
+		\item Приложните функции са групирани в четири класа:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \textbf{управление на потоци}: създаване, обединение, управление на атрибути и др.;
+							\item \textbf{синхронизация на потоци}: посредством специализирани помощни примитиви като \textbf{ключалки и бариери (locks and barriers)};
+							\item \textbf{взаимно изключване}: чрез употреба на примитиви за обособяване на критични секции \textbf{(mutex)};
+							\item \textbf{управление на условни блокове и нотификация}: с помощта на функции за боравене с \textbf{условни променливи (condition variables)}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Pthreads: насоки при разработка}
+	\begin{itemize}
+		\item Именуване на функциите:
+		      \begin{itemize}
+			      \scriptsize{
+							\item конвенцията приема употреба на префикс: \lstinline{pthread\_};
+							\item процедурите по компилиране и свързване налагат явно указване на Pthreads библиотеката (\lstinline{-lpthread} за gcc);
+							\item повече инфо може да откриете тук: \url{https://hpc-tutorials.llnl.gov/posix/compiling/}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Pthreads: създаване и управление на нишки}
+	\begin{itemize}
+		\item Важни прототипи на функции:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \lstinline{pthread_attr_init(attr)} - инициализиране на обект с атрибути, включващи статут, политика на диспечериране, размер на стека и др.;
+							\item \lstinline{pthread_attr_destroy(attr)} - освобождаване на референцията към атрибутите;
+							\item \lstinline{pthread_create(thread, attr, start\_routine, arg)} - създаване на нишка и запускането \'и чрез изпълнение на указаната функция: start\_routine;
+							\item \lstinline{pthread_cancel(thread)} - заявка за терминиране на изпълнението;
+							\item \lstinline{pthread_exit(status)} - терминиране на текущо изпълняваната нишка
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Pthreads: процес с няколо нишки - илюстрация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.7\textwidth, height=0.30\textwidth, keepaspectratio]{images/lec_6/fig_9.png}
+			\caption{pic. based on \url{https://hpc-tutorials.llnl.gov/posix/creating_and_terminating/}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Pthreads: диспечериране на потоци}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+			      \scriptsize{
+							\item Pthread API не предоставя механизми за обвързване изпълнението на поток с конкретно ядро или процесор;
+							\item съществуват непреносими решения като \lstinline{pthread_setaffinity_np};
+							\item функции, за чиято имплементация е отговорна Линукс ОС, включват например: \lstinline{sched_getaffinity} и \lstinline{sched_setaffinity}
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Проектиране на паралелни задания}
+	\begin{itemize}
+		\item Съборажения:
+		      \begin{itemize}
+			      \scriptsize{
+							\item избор на удачен и ефективен програмен модел и средства за поддръжка;
+							\item удачно разделяне на задачата на независими или подаващи се на оптимизация подзадачи;
+							\item стратегия за балансиране на работния товар
+							\item избор на подходящи механизми за междупроцесна комуникация и синхронизация;
+							\item арбитриране на достъпа до паметта;
+							\item оценка на вложените усилия и разходи за разработка
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Обезпечаване на паралелизъм}
+	\begin{itemize}
+		\item Обобщение на програмни модели:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \textbf{Manager/Workers} - една основна управляваща нишка (Manager), която приема входни данни и разпределя координираната им обработка от няколко подпроцеса (Workers);
+							\item \textbf{Pipeline (конвейер)} - пример за разделяне на заданието на последователни подоперации, всяка от която се изпълнява независимо от отделен поток обработчик;
+							\item \textbf{Peer (кооперативен)} - подобен на Manager/Worker, но в този случай Manager потокът също участва и в пряката обработка на данни
+			            }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Предстои да разгледаме някои механизми и примитиви за междупроцесна синхронизация и комуникация в следващите лекции}
+	\end{center}
+\end{frame}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://en.wikipedia.org/wiki/Multithreading_(computer_architecture)}
+		\item \url{https://en.wikipedia.org/wiki/Peterson\%27s_algorithm}
+		\item \url{https://en.wikipedia.org/wiki/Lamport\%27s_bakery_algorithm}
+		\item \url{https://en.wikipedia.org/wiki/Multiprocessing}
+		\item \url{https://en.wikipedia.org/wiki/SIMD}
+		\item \url{https://en.wikipedia.org/wiki/MIMD}
+		\item \url{https://en.wikipedia.org/wiki/Critical_section}
+		\item \url{https://en.wikipedia.org/wiki/Deadlock}
+		\item \url{https://man7.org/linux/man-pages/man3/pthread_setaffinity_np.3.html}
+		\item \url{https://gcc.gnu.org/onlinedocs/gcc-4.1.1/gcc/Atomic-Builtins.html}
+		\item \url{https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf}
+		\item \url{https://hpc-tutorials.llnl.gov/posix/creating_and_terminating/}
+		\item \url{https://search.creativecommons.org/}
+		      }
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+
