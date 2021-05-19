@@ -1,0 +1,19 @@
+/* non-reentrant and non-thread-safe */
+void global_sum(int* x, int y) {
+    int res;
+
+    /* x points to a global variable */
+    /* no multithreaded locking present */
+    res = *x;
+    res += y;
+    *x = res;
+}
+
+/* reentrant sum */
+int reentrant_sum(int a, int b) {
+    int res = 0;
+
+    /* all args live on the stack */
+    res = a + b;
+    return res;
+}

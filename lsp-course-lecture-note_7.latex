@@ -1,0 +1,1127 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+\usepackage{mathtools}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={C},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Средства и механизми за междупроцесна синхронизация.}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{19.05.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да:
+		      \begin{itemize}
+						\scriptsize{
+							\item поясни защо се налага синхронизация на задачи и потоци;
+							\item посочи често прилагани способи за реализиране на критични секции;
+							\item разясни какви средства предоставя ОС за междупроцесна синхронизация;
+							\item разкрие как описаните примитиви се категоризират според целевата функция;
+							\item илюстрира практически примери в контекста на Posix Pthread API и Линукс ОС
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Синхронизация на процеси с фокус върху подходи за блокиране и взаимно изключване}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Предпоставки за възникване на междупроцесни състезания}
+	\begin{itemize}
+		\item Примери:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{съревнование} за боравене с краен набор физически или логически средства (например: входно-изходни устройства, заемане на изчислителни блокове и др.);
+							\item \textbf{комуникация посредством споделени сегменти от паметта}, при които съществува риск от компрометиране на целостта на данните при множествен достъп;
+							\item отработване на поредица действия в резултат на възникване на конкретно системно събитие и неговото сигнализиране;
+							\item \textbf{асинхронно постъпване на нови задания} и нужда от планиране на работния товар (предизвикателства, съотнесени към дисциплините за системно планиране);
+							\item \textbf{паралелно изпълнение} на \textbf{конкуриращи} или \textbf{коопериращи} се процеси или потоци
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Да си припомним възможни сценарии за развитието на множество задачи съобразно политиката за планиране}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Планиране на постъпващите процеси: примери}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.72\textheight, keepaspectratio]{images/lec_7/fig_5.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Scheduling_(computing)}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Въведение в междупроцесната синхронизация}
+	\begin{itemize}
+		\item Дефиниция и потребности:
+		      \begin{itemize}
+						\scriptsize{
+							\item синхронизацията между заданията е необходима за имплементиране на взаимодействие между група процеси, като \textbf{процесът на координация} бива \textbf{пряк} и \textbf{косвен};
+							\item основание за съгласуване при сътрудничещи си програми е необходимостта от структуриране на подзадачите в процеса на работа и своевременния обмен на данни, без които синхронът би бил невъзможен;
+							\item предпоставка за координация при съревновавщи се задачи е изискването да се запази интегритетът на споделените данни и да се гарантира ексклузивен достъп до обектите, защитени с критични секции;
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Политики и методи за съгласуване на процеси}
+\frame {
+	\frametitle{Методика за координация на процеси}
+	\begin{itemize}
+		\item \textbf{Съгласуването бива:}
+		      \begin{enumerate}
+						\scriptsize{
+							\item \textbf{пряко}, когато се ползват примитиви и механизми за предотвратяване на нежелано блокиране и указване на правилата за взаимодействие и взаимно изключване;
+							\item \textbf{непряко}, когато резултатът от обработката на едно задание е необходимо условие за протичане на последващо без явна взаимовръзка или състезание за достъп до общ ресурс;
+						      }
+		      \end{enumerate}
+    \item \textbf{Примери:}
+		      \begin{itemize}
+						\scriptsize{
+							\item по т.1 - набор от \textbf{процеси производители} и един или повече \textbf{процеси потребители}, свързани с общ краен буфер елементи;
+							\item по т.2 - \textbf{разпаралеляване на алгоритъм} на отделни взаимосвързани блокове или \textbf{конвейерна обработка}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Междупроцесна синхронизация: подходи}
+	\begin{itemize}
+		\item Разновидности:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{софтуерни (програмни решения)} - ползвайки логически конструкции и алгоритми за осигуряване на синхрон посредством \textbf{програмно изчакване} като вече споменатия алгоритъм на Peterson;
+							\item \textbf{хардуерни подходи}, при които взаимното изключване или планиране на изпълнението се решава чрез \textbf{апаратни блокове}, структури или устройства, подсигуряващи \textbf{критична секция}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Междупроцесна синхронизация: необходими условия}
+	\begin{itemize}
+		\item Прилаганите подходи трябва да гарантират:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{коректно и надеждно изграждане на критична секция} и управление на достъпа, ако това е наложително за манипулиране на ограничен логически или физически ресурс;
+							\item възможност за навлизане в критичната секция в \textbf{обозримо бъдеще време} без риск от безкрайно отлагане на очакващо задание;
+							\item \textbf{безпристрастен механизъм} за селектиране на чакащ достъп процес и контролиране на времето, за което той борави с критичния споделен ресурс;
+							\item \textbf{справедлива политика за планиране на процесите}, така че да се предвиди възможност на отложено или изчакващо задание да се изпълни;
+							\item не се допускат други ограничения или предпоставки, които могат да повлияят върху механизмите за взаимно изключване и/или диспечериране
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Роля на операционната система и системното програмно осигуряване}
+	\begin{itemize}
+		\item Отговорности:
+		      \begin{itemize}
+						\scriptsize{
+							\item подсигуряване на \textbf{набор от подходящи примитиви} за синхронизация и комуникация, съобразени със спецификите на микроархитектурата;
+							\item коректна реализация на \textbf{подход за взаимно изключване} и справедлива селекция между състезаващите се процеси или потоци;
+							\item осигуряване на \textbf{приемлива ефикасност} при боравенето със способите за синхронизация: както от гледна точка на имлементацията на процедурите по заключване и блокиране, така и по отношение на влиянието върху алгоритмите на ОС за планиране при многоядрени или многопроцесорни системи
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Програмни техники за предпазване от състезания}
+	\begin{itemize}
+		\item На високо ниво се открояват:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{реентрантност} - блокът операции може да бъде частично изпълнен и прекъснат, рекурсивно извикан повторно или изпълнен паралелно от друг поток без това да повлияе негативно върху коректността на крайния резултат;
+							\item локализиране на променливите - всяка нишка разполага със свое локално работно копие \textbf{thread-local storage};
+							\item неизменими обекти \textbf{immutable objects} - не подлежат на промяна след създаване (конструкция);
+							\item взаимно изключване \textbf{mutual exclusion} при множество процеси или потоци, при които се изгражда критична секция, взаимно изчакване и явно арбитриране на четене и запис в паметта;
+							\item атомарни операции над променливи \textbf{atomic operations} - изпълняват се без прекъсване и без вмешателство от страна на друг поток, като при многоядрени системи терминът предполага заключване на достъпа до завършване на операцията
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Какво значение се влага в определенията \textcolor{blue}{реентрантна} (reentrant), \textcolor{blue}{синхронизирана многонишкова} (thread-safe) и \textcolor{blue}{идемпотентна} (idempotent) процедура или последователност?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Реентрантен, защитен многопоточен и инвариантен}
+	\begin{itemize}
+		\item Определение и смислово разграничение:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{реентрантен} - запазва се контекстът и интегритета на изчисленията, ако процедурата бъде прекъсната и извикана повторно в различен контекст или от друг блок за обработка;
+							\item \textbf{синхронизиран многонишков} - реализира критична секция и блокира опит за конкурентен достъп от страна на други потоци, ако един вече е навлязъл в защитения блок;
+							\item \textbf{идемпотентен} - инвариантен по повод на входните аргументи в етапа на изпълнение.
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Примери}
+	\begin{itemize}
+		\item Приема се еквивалентно тълкуване на функция и процедура:
+		      \begin{enumerate}
+						\scriptsize{
+							\item \textbf{реентрантна функция} - \lstinline{int func(int x) \{return 2 * x;\}}, като още примери може да откриете тук: \url{https://man7.org/linux/man-pages/man7/signal-safety.7.html}
+							\item \textbf{thread-safe} - функции, при които се прилагат инструменти за блокировка, координация и взаимно изчакване, включително и в аспект работа с паметта;
+							\item \textbf{идемпотентна функция} - релация на тъждественост: f(x) = x. 
+						      }
+		      \end{enumerate}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А как изглежда една нереентрантна процедура? Всичко това изглежда обръкващо...}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Нереентрантна процедура: илюстрация}
+	
+	\scriptsize{
+		\lstinputlisting{listings/lec_7/lst_1.txt}
+	}
+	\end{frame}
+
+\frame {
+	\frametitle{Реентрантен не означава thread-safe или атомарен. Защо?}
+	\begin{itemize}
+		\item Защото се влага различен смисъл и обхват на приложение:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{реентрантността визира разполагане на входните и изходните аргументи в стека}, като така се локализира регионът на взаимодействие, елиминират се обръщения към глобални променливи;
+							\item \textbf{реентрантността не е задължително синхронизирана}, защото обикновено се обособява блок от обработки, които сами по себе си не е задължително да включват заключване, взаимно изчакване или многопоточна блокировка;
+							\item \textbf{реентрантността не е гарантирано атомарна}, защото повечето реални операции са изградени от изпълнението на поредица от повече от една процесорни инструкции, която няма отношение към механиката на апаратните прекъсвания и не налага изисквания за това в повечето случаи
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Необходими условия за реентрантност}
+	\begin{itemize}
+		\item Изисквания:
+		      \begin{itemize}
+						\scriptsize{
+							\item да не се правят референции към глобални или статични променливи;
+							\item да не се видоизменя автономно изпълнимият код в хора на работа;
+							\item тялото на процедурния блок да не съдържа обръщения към други нереентрантни функции
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Реентрантни функции: приложение}
+	\begin{itemize}
+		\item Ползват се при:
+		      \begin{itemize}
+						\scriptsize{
+							\item разработка на модули в състава на операционната система: платформени и устройствени драйвери, като добра практика при програмиране на \textbf{обработка на прекъсвания (interrupt handlers)} или предотвратяване на нежелани последствия при наличие на прекъсване и приоритетното му обслужване от друг подпроцес;
+							\item в системното програмиране - за минимизиране на нежелани спонтанни изменения на стойността или съдържанието на общореферирани променливи - пример с обработка на възникнал сигнал \textbf{(signal handler)};
+							\item \textbf{в контекста на ОС понятието реентрантност се надгражда и разграничава от понятието атомарност} и податливост на прекъсване от диспечера, което добавя ново ниво на осмисляне и техника на програмиране
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Реалното многообразие от процеси и развитието им ограничава използването на пасивни техники. Създаването на реентратни процедури невинаги е възможно и оправдано на високо ниво. Необходимо е да се запознаем с примерни методи и средства за междупроцесна координация.}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Разновидности примитиви за синхронизация на процеси}
+	\begin{itemize}
+		\item Категоризация:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{апаратни и/или софтуерни прекъсвания} с пряко влияние върху избора на активно задание и времето му за изпълнение от процесора;
+							\item \textbf{ключалки} - обекти, опериращи най-често върху файлови дескриптори и ползвани за координиране достъпа до споделени файлови обекти, като се разделят на общи (за четене) и ексклузивни (когато притежаващият процес извършва и модификация върху данните);
+							\item \textbf{семафори} - обекти, ползвани за подсигуряване на взаимно изключване на два или повече процеса, като се делят на двоични и броячни;
+							\item \textbf{мутекси и условни променливи} - обезпечават блокиране на потоци по отношение на изпълнявана обработка или боравене със системни ресурси до удовлетворяване на определено условие и съпътстващото сигнализиране
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Нива на синхронизация: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_1.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Synchronization_(computer_science)}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Взаимно изключване с хардуерни способи}
+	\begin{itemize}
+		\item Открояват се решения с:
+		      \begin{itemize}
+						\scriptsize{
+							\item употреба, обработка и контрол върху прекъсванията - тук блокирането би могло да се осъществи чрез временна забрана за обслужване на прекъсвания и превключване на контекста (\textbf{cli} и \textbf{sti} инструкции при Intel x86);
+							\item машинни команди за атомарно изпълнение (от вида на \textbf{TS - atomic test and set}), при които критичната секция се реализира чрез атомарно (непрекъсваемо) установяване на променлива или аналогична операция чрез регистрови структури на процесора, (например: \textbf{cmpxchg: compare and exchange} or \textbf{TS: test and swap})
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Координация с манипулиране на прекъсванията}
+	Набор от архитектурно специфични функции на най-ниско ниво:
+	\scriptsize{
+		\lstinputlisting{listings/lec_7/lst_2.txt}
+	}
+	\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Атомарно взаимно изключване: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_2.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Test-and-set}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Синхронизация чрез апаратни прекъсвания: недостатъци}
+	\begin{itemize}
+		\item Най-съществените са:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{необходимост от превключване на контекста} и извършване на привилегирована операция от името на операционната система, което внася допълнителна латентност;
+							\item \textbf{риск от монополизиране на процесора}, когато злоупотребяваща програма реши да забрани за дълъг период детекцията и обслужването на прекъсвания - резултатът е неработоспособна система;
+							\item \textbf{обръкваща приложимост на подхода върху многоядрени или многопроцесорни системи}, при които последователността, определяща критичната секция, би могла да се изпълни едновременно върху различни ядра;
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Добре, а какви програмни примитиви на високо ниво се използват?}
+	\end{center}
+\end{frame}
+
+\section{Класификация на програмни примитиви за взамино изключване и условно блокиране}
+\begin{frame}[fragile]
+  \frametitle{Класификация на примитиви за синхронизация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_10.png}
+			\caption{pic. based on \url{https://man7.org/conf/lca2013/IPC_Overview-LCA-2013-printable.pdf}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Част I -  Синхронизация на процеси посредством условно заключване със средства от високо ниво}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Условно активно заключване: наивен подход}
+	\begin{itemize}
+		\item Техника с централизиран флаг и активно чакане (busy waiting):
+		      \begin{itemize}
+						\scriptsize{
+							\item примерно решение е показано във вече описания \textbf{алгоритъм на Peterson};
+							\item разчита се на \textbf{споделен Булев флаг} и \textbf{специализирани инструкции за атомарно} прочитане, условно записване и проверка на стойността на флага (пример: \textbf{ldrex} и \textbf{strex} инструкции при ARM);
+							\item критичната секция се изгражда на база на устнавовяване на стойността на общия флаг;
+							\item при отчитане на вече инициализирана променлива - \textbf{конкуриращ се поток се блокира}, изпълнявайки периодична проверка на управляващата стойност и \textbf{изчакване в празен цикъл}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Условно активно заключване: подобрение}
+	\begin{itemize}
+		\item Би могло да включва:
+		      \begin{itemize}
+						\scriptsize{
+							\item вместо безсмислено заемане на процесора при изчакване се приема \textbf{техника на обръщение към диспечера} чрез \textbf{системно извикване (yield)};
+							\item \textbf{yield} поставя извикващия поток в опашка от чакащи процеси;
+							\item \textbf{Линукс предприема хибриден подход}, съчатаващ \textbf{първоначален цикъл на busy waiting} и \textbf{последващо отнемане на процесора} или блокиране посредством \textbf{futex (fast userspace mutex)};
+							\item множество \textbf{синхронизационни конструкции от високо ниво} са имплементирани с помощта на futex операции като \textbf{mutex}, \textbf{condition variables} и \textbf{barriers};
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Активно заключване: обобщение}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+						\scriptsize{
+							\item изисква \textbf{референция към споделена променлива или регион памет} (при множество процеси);
+							\item налага \textbf{ползване на специализирани процесорни инструкции}, включително \textbf{барирери на паметта (memory barriers)};
+							\item поради евентуално \textbf{превключване на контекста} би могло да се окаже неефикасно при множество съревноваващи се процеси или потоци;
+							\item необходимо е не само \textbf{атомарно четене и запис}, но и манипулиране на опашките на системния диспечер;
+							\item подходът със забраняване на обслужването на прекъсванията се предпочита при компактни критични секции с кратко планирано време за изпълнение и малко на брой конкурентни процеси;
+							\item съвременните ОС като Линукс предоставят \textbf{хибриден подход} на условно заключване, подобен на описания, за да се подобри системната производителност
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Условно заключване и блокиране: програмни примитиви - футекси, ключалки и семафори}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Управление на достъпа до критична секция: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_15.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Synchronization_(computer_science)}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Взаимно изключване чрез futex}
+	\begin{itemize}
+		\item Дефиниция и постановка:
+		      \begin{itemize}
+						\scriptsize{
+							\item фундаментална логическа абстракция за имплементиране на различни видове синхронизационни примитиви;
+							\item позволява голяма част от операциите по взаимно арбитриране да се развият в \textbf{потребителски режим} с частичен помощен арбитраж от ядрото;
+							\item ползва споделен регион виртуална памет между процесите и всяка инстанция се представя обикновено чрез 32-битово цяло число;
+							\item всеки процес изобразява споделения футекс обект с уникален виртуален адрес в своето адресно пространство, но футексът реферира една и съща физическа локация;
+							\item \textbf{futex системно извикване} и обръщение към ядрото се прави само когато процес ще се блокира за по-дълъг период от време, тогава ядрото на ОС е отговорно за по-нататъшната нотификация
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Futex: механизъм на реализация}
+	\begin{itemize}
+		\item Механика и приложение:
+		      \begin{itemize}
+						\scriptsize{
+							\item състоянието на обекта ключалка се изобразява с атомарно установяван и проверяван флаг или числена стойност;
+							\item всеки процес или поток би могъл да измени съдържанието на споделения флаг, ползвайки специализирани неделими инструкции от рода на посочените test and set варианти;
+							\item тези инструкции се развиват в потребителски режим и ядрото на ОС не поддържа метаданни за описание на състоянието на ключалката;
+							\item когато втори процес желае да модифицира вече измемен футекс обект, той предава прочетената стойност на обекта и желаната такава с помощта на системно извикване към ядрото, след което бива блокиран;
+							\item само в описаната ситуация на блокиране ядрото поддържа вътрешни записи, отразяващи съдържанието на футекс обекта, за да управлява привеждането на процес в блокирано състояние или в състояние на готовност;
+							\item процес, освобождаващ обекта ключалка, трябва да възвърне оригиналната целочислена стойност, отразена от футекса - тогава ядрото взема предвид това и събужда чакащ процес
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Повече информация за futex бихте могли да откриете тук:} \newline \url{https://man7.org/linux/man-pages/man2/futex.2.html}}
+	\end{center}
+\end{frame}
+
+\section{Posix ключалки и семафори}
+\frame {
+	\frametitle{Posix ключалки}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+						\scriptsize{
+							\item логически обект, подсигуряващ взаимно изключване на конкуриращи се процеси и организиране на критична секция;
+							\item само един процес или поток може да заяви свободна ключалка, като след като това стане, останалите желаещи достъп, ще преминат в \textbf{режим на активно очакване (spinning)};
+							\item недостатък е, че блокираните потоци изпълняват активно чакане (busy looping), което лимитира обхвата на приложение;
+							\item препоръчва се заместването на spinlock обекти с мутекси що се касае до изграждане на критична секция;
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Posix Pthread ключалки: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{int pthread_spin_init(pthread_spinlock_t *lock, int pshared)} - инициализация на обект клочалка;
+							\item \lstinline{int pthread_spin_lock(pthread_spinlock_t *lock)} - блокиращо изчакване на придобиване на ключалка за навлизане в критична секция;
+							\item \lstinline{int pthread_spin_trylock(pthread_spinlock_t *lock)} - неблокиращ аналог на горната функция;
+							\item \lstinline{int pthread_spin_unlock(pthread_spinlock_t *lock)} - освобождаване на ключалка и позволяване на диспечера да пропусне друг очакващ процес;
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Posix Pthread spin\_locks: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/threads/thread_incr_spinlock.c.html}}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Критична секция чрез семафори}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+						\scriptsize{
+							\item въведени от Edsger Wybe Dijkstra за пръв път през 60-те години на 20-ти век;
+							\item представляват променливи с две позволени операции: \textbf{P} и \textbf{V};
+							\item различават се \textbf{двоични семафори} (приемащи стойност 0 и 1) и \textbf{броячни такива} (приемащи неотрицателни целочислени стойности);
+							\item броячните семафори биха могли да служат за контролирано управление на достъпа на множество процеси до краен набор системни ресурси
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Семафорни операции}
+	\begin{itemize}
+		\item Пояснение:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{P()} - атомарна операция, при която се изчаква семафорът да приеме положителна ненулева стойност и след това го декрементира с 1;
+							\item \textbf{V()} - неделима операция, при която стойността на семафора се инкрементира с 1, след което се разрешава блокирана P() функция
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Семафори: механизъм на имплементация}
+	\begin{itemize}
+		\item \textbf{Реализацията на P() се базира върху:}
+		      \begin{itemize}
+						\scriptsize{
+							\item атомарни инструкции за модифициране стойността на семафорната променлива;
+							\item ако стойността е 0, то се прави запис на извикващия процес в привързана опашка и процесът се блокира;
+							\item ако стойността не е 0, тя се декрементира и извикващият процес бива допуснат в защитената секция;
+						      }
+		      \end{itemize}
+    \item \textbf{Реализацията на V() се гради върху:}
+		      \begin{itemize}
+						\scriptsize{
+							\item атомарни инструкции за изменение стойността на семафорната променлива;
+							\item ако привързаната опашка от блокирани процеси не е празна, се изважда процес и се привежда в състояние на готовност;
+							\item инкрементира се стойността на променливата
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Диаграма на взаимодействието чрез семафори}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.72\textheight, keepaspectratio]{images/lec_7/fig_18.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Semaphore_(programming)}}
+		\end{figure}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Posix Pthread семафори: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{int sem_init(sem_t *sem, int pshared, unsigned int value)} - инициализация на семафорен обект;
+							\item \lstinline{sem_t *sem_open(const char *name, int oflag)} - заявка за достъп до семафорен обект;
+							\item \lstinline{int sem_close(sem_t *sem)} - осбовождаване референция към активен семафор;
+							\item \lstinline{int sem_post(sem_t *sem)} - отключване на семафор и сигнал за разблокиране на чакащ процес;
+							\item \lstinline{int sem_wait(sem_t *sem)} - блокиращо изчакване семафор да бъде отключен;
+							\item \lstinline{int sem_trywait(sem_t *sem)} - неблокиращ аналог на горната функция;
+							\item \lstinline{int sem_timedwait(sem_t *restrict sem, const struct timespec *restrict abs_timeout)} - блокиращо изчакване с времеви лимит;
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Posix Pthread semaphores: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/psem/psem_create.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Мъртва хватка - предпоставки и стратегии за предотвратяване}
+\frame {
+	\frametitle{Условна критична секция: потенциални проблеми}
+	\begin{itemize}
+		\item Съществува риск от:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{възникване на мъртва хватка} с безкрайно отлагане на процеси или потоци;
+							\item \textbf{инверсия на приоритетите} - когато високоприоритетна задача бива отложена поради факта, че нископриоритетна е преминала в състояние на изпълнение и е навлязла в критична секция. По този начин се е отложила активацията на високоприоритетната задача, която се блокира пред същата критична секция. Така високоприоритетната не би могла да завърши в рамките на очаквания времеви интервал, в резултат на което тя пропада и може да доведе до срив на системата.
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Илюстрация на взаимно блокиране}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_4.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Deadlock}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Предпоставки за възникване на мъртва хватка}
+	\begin{itemize}
+		\item Посочват се:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{некоректно взаимно изключване на процеси} - споделеният ресурс може да се ползва ексклузивно само от един потребител в даден момент;
+							\item \textbf{блокиране в рамките на критичната секция} - процес, навлязъл в критична секция и блокиращ други, навлиза в състояние на изчакване освобождаването на друг системен ресурс;
+							\item \textbf{липса на надзор при разпределението на средствата} - процес, заел обект, може да го освободи само доброволно;
+							\item \textbf{кръгово блокиращо очакване} - верига от процеси, при която всеки очаква освобождаването на обект, зает от предходния
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Съществува ли удачен алгоритмичен подход за детекция на мъртва хватка?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Граф на разпределение на ресурсите}
+	\begin{itemize}
+		\item Моделиране на системата и постановка:
+		      \begin{itemize}
+						\scriptsize{
+							\item крайно множество от ресурси, представено чрез вектор: $<R_{i}>$;
+							\item краен набор от процеси ползватели, представено чрез вектор: $<P_{i}>$;
+							\item съществуват: $N_{i}$ инстанции от всеки ресурс: $R_{i}$;
+							\item всеки поток инструкции употребява ресурса чрез следната последователност: \textbf{заявка} $->$ \textbf{ползване} $->$ \textbf{освобождаване}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Граф на разпределение на ресурсите: продължение}
+	\begin{itemize}
+		\item \textbf{Построява се граф посредством:}
+		      \begin{itemize}
+						\scriptsize{
+							\item двете посочени множества на ресурсите $R_{i}$ и процесите $P_{i}$;
+						      }
+		      \end{itemize}
+    \item \textbf{Открояват се два вида насочени ребра:}
+		      \begin{itemize}
+						\scriptsize{
+							\item на \textbf{заявяване}: $T_{i}\ -> R_{j}$;
+							\item на \textbf{присвояване}: $R_{j}\ -> T_{i}$
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Илюстрация на примерни граф структури}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_3.png}
+			\caption{pic. based on \url{https://inst.eecs.berkeley.edu/~cs162/fa19/static/lectures/11.pdf}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Алгоритъм за откриване на мъртва хватка}
+	\begin{itemize}
+		\item Базира се върху:
+		      \begin{itemize}
+						\scriptsize{
+							\item структури от данни, чрез които се строи \textbf{динамичен граф на заетостта на ресурсите}
+						      }
+		      \end{itemize}
+		\item Подсигуряване на следните зависимости:
+		      \begin{itemize}
+						\scriptsize{
+							\item две възможни състояние на ресурсите: \textbf{разпределени} или \textbf{налични};
+							\item никой процес не може да заяви повече от наличните ресурси или повече от тотално заявените
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{"Алгоритъм на Банкера"}
+	\begin{itemize}
+		\item \textbf{Разработен от Edsger Dijkstra и разчитащ на:}
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{вектор на процесите}: $<P_{n}>$;
+							\item \textbf{вектор на наличните ресурси}: $<R_{m}>$;
+							\item \textbf{матрица на допустимите максимални заявки за всеки процес}: $Q_{nm}$;
+							\item \textbf{матрица на разпределените ресурси за всеки процес}: $P_{nm}$
+						      }
+		      \end{itemize}
+    \item \textbf{Повече информация:}
+		      \begin{itemize}
+						\scriptsize{
+							\item \url{https://en.wikipedia.org/wiki/Banker\%27s_algorithm}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Deadlock на процеси все пак се случва в реалността. Има ли и други подходи?}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Стратегии за предотвратяване на мъртва хватка}
+	\begin{itemize}
+		\item Направления:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{програмни подходи} за предотвратяване при фазите на проектиране и разработка;
+							\item \textbf{стратегия на избягване} с повлияване върху разпределението на ресурсите (опционално без необходимост от блокиране);
+							\item въвеждане на \textbf{системни механизми за детекция} и възстановяване на работоспособно състояние \textbf{(watchdog daemon)}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Част II -  Синхронизация на потоци със средства от високо ниво}
+	\end{center}
+\end{frame}
+
+\section{Posix мутекси}
+\frame {
+	\frametitle{Posix Pthread мутекси}
+	\begin{itemize}
+		\item Определение:
+		      \begin{itemize}
+						\scriptsize{
+							\item аналог на семафорни примитиви, ползвани за координация на конкуриращи се потоци;
+							\item блокирането и изчакването се осъществяват на ниво потоци от инструкции в контекста на един процес
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Визуално представяне на взаимодействие чрез мутекси}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_17.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Lock_(computer_science)}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Смислово разграничаване между семафор и мутекс}
+	\begin{itemize}
+		\item \textbf{Характеристики на семафорите:}
+					\begin{itemize}
+						\scriptsize{
+							\item \textbf{споделени обекти}: множество процеси или потоци могат да ползват референция към един семафор и да изменят стойността;
+							\item \textbf{с по-широка област на приложение}: позволяват както имплементиране на критична секция и взаимно блокиране, така и ефикасно управление на разпределение на достъпа до ограничен набор ресурси единици;
+							\item \textbf{генерализиран примитив с възможност за реализация и на форма на междупроцесна комуникация}: броячните семафори намират приложение и като примитив за сигнализиране за настъпило събитие;
+									}
+					\end{itemize}
+		\item \textbf{Характеристики на мутексите:}
+					\begin{itemize}
+						\scriptsize{
+							\item \textbf{ексклузивно достъпвани обекти}: с асоциирана принадлежност и строго определена последователност на употреба;
+							\item \textbf{с конкретна ограничена област на приложение}: служат за взаимно блокиране на конкуриращи се потоци; 
+							\item \textbf{с по-неефикасно бързодействие при употреба}: входът и изходът от критичната секция (блокирането и активацията на потоците) са изцяло под контрола на системния диспечер на ОС
+									}
+					\end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Posix Pthread мутекси: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;};
+							\item \lstinline{int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr)} - инициализация на мутекс;
+							\item \lstinline{int pthread_mutex_destroy(pthread_mutex_t *mutex)} - освобождаване на заделен мутекс;
+							\item \lstinline{int pthread_mutex_lock(pthread_mutex_t *mutex)} - блокиращо изчакване мутекс да бъде освободен;
+							\item \lstinline{int pthread_mutex_trylock(pthread_mutex_t *mutex)} - неблокиращ аналог на горната функция;
+							\item \lstinline{int pthread_mutex_unlock(pthread_mutex_t *mutex)} - отключване на мутекс обект и сигнализиране за разблокиране на очакващ поток
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Posix Pthread мутекси: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/threads/thread_multijoin.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Posix условни променливи}
+\frame {
+	\frametitle{Условни променливи}
+	\begin{itemize}
+		\item Дефиниция и предназначение:
+		      \begin{itemize}
+						\scriptsize{
+							\item подсигуряват синхронизиране на потоци, но на база \textbf{стойност на споделена конструкция}, а не чрез манипулиране на достъпа до нея;
+							\item служат не само за взаимно блокиране, но и за \textbf{форма на междупоточна комуникация};
+							\item нотификацията за обновяване на целевата стойност, блокирането и разблокирането на конкуриращите се нишки е поверено на ОС;
+							\item условните променливи са \textbf{имплементирани посредством футекси} и \textbf{елиминират необходимостта от polling} (активно периодично проверяване на стойност на общ обект данни)
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Онагледяване на взаимодействие с условни променливи}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_16.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Observer_pattern}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Posix Pthread условни променливи: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{pthread_cond_t cond = PTHREAD_COND_INITIALIZER}
+							\item \lstinline{int pthread_cond_init(pthread_cond_t *restrict cond, const pthread_condattr_t *restrict attr)} - инициализиране на условна променлива;
+							\item \lstinline{int pthread_cond_signal(pthread_cond_t *cond)} - сигнализиране и разблокиране на само един от изчакващи потоци, когато условната променлива е достигнала желана стойност;
+							\item \lstinline{int pthread_cond_broadcast(pthread_cond_t *cond)} - сигнализиране и разблокиране на всички изчакващи потоци, когато условната променлива е достигнала желана стойност;
+							\item \lstinline{int pthread_cond_wait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex)} - изчакване и блокиране на поток докато условната променлива не приеме зададена стойност;
+							\item \lstinline{int pthread_cond_destroy(pthread_cond_t *cond)} - освобождаване на обект условна променлива
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Posix Pthread условни променливи: пояснение}
+	\begin{itemize}
+		\item Препоръчителна програмна последователност:
+		      \begin{itemize}
+						\scriptsize{
+							\item всеки конкурентен поток изпълнява първоначално \textbf{mutex\_lock}, последван от \textbf{cond\_wait};
+							\item ако условната проверка върне лъжа, тогава потокът се блокира пред условната променлива и се излиза от критичната секция с \textbf{mutex\_unlock};
+							\item при промяна на условната променлива от друга нишка и извършена сигнализация, чакащ поток се избира и събужда, като взаимоизключващата блокировка се подновява
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Posix Pthread условни променливи: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/threads/prod_condvar.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Posix ключалки за четене и запис}
+\frame {
+	\frametitle{Posix Pthread ключалки за четене и запис}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+						\scriptsize{
+							\item различават се от класическите обекти активни ключалки и служат за логическо разделяне на потоците на \textbf{"читатели"} и \textbf{"писатели"};
+							\item допускат едновременното развитие на множество нишки, достъпващи споделени обекти в паметта само за четене или само на един процес, които желае да нанесе промяна на споделенето съдържание;
+							\item аналогични са на броячни семафори по отношение на читателите;
+							\item аналогични са на двоични семафори що се отнася до потоците писатели;
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Posix Pthread ключалки за четене и запис: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER}
+							\item \lstinline{int pthread_rwlock_init(pthread_rwlock_t *restrict rwlock, const pthread_rwlockattr_t *restrict attr)} - инициализация на обект ключалка;
+							\item \lstinline{int pthread_rwlock_destroy(pthread_rwlock_t *rwlock)} - освобожданате на ключалката;
+							\item \lstinline{int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)} - блокиращ опит за активиране достъп само за четене посредством ключалката;
+							\item \lstinline{int pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock)} - аналог на горната функция, но без блокиране при неуспех за "отключване" на ключалката;
+							\item \lstinline{int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)} - блокиращ опит за получаване достъп за запис чрез ключалката;
+							\item \lstinline{int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock)} - аналог на горната функция, но без блокиране при неуспех за "отключване" на ключалката;
+							\item \lstinline{int pthread_rwlock_unlock(pthread_rwlock_t *rwlock)} - функция за "отключване" на ангажиран обект ключалка
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Posix Pthread ключалки за четене и запис: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/threads/thread_incr_rwlock.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Posix бариери}
+\frame {
+	\frametitle{Posix Pthread бариери}
+	\begin{itemize}
+		\item Дефиниция и предназначение:
+		      \begin{itemize}
+						\scriptsize{
+							\item обекти, които подсигуряват взаимно блокиране на конкретен набор потоци докато всеки от един от тях не заяви желание да продължи изпълнението след региона, маркиран от бариерата;
+							\item след като така описаното граничното условие е удовлетворено и всички нишки са достигнали точката на бариерата - диспечерът на ОС разрешава по-нататъшното паралелно изпълнение на тези потоци, като редът на активация е недетерминиран
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Диаграма на механизъм с бариерна синхронизация}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_7/fig_14.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Barrier_(computer_science)}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Posix Pthread бариери: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{int pthread_barrier_init(pthread_barrier_t *restrict barrier, const pthread_barrierattr_t *restrict attr, unsigned count)} - инициализация на обект бариера;
+							\item \lstinline{int pthread_barrier_destroy(pthread_barrier_t *barrier)} - освобождаване на референция към създадена барирера;
+							\item \lstinline{int pthread_barrier_wait(pthread_barrier_t *barrier)} - изчакване и сигнализация на заявка за навлизане в критична секция, маркирана от бариерата
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Posix Pthread бариери: разглеждане на пример:} \url{https://man7.org/tlpi/code/online/dist/threads/pthread_barrier_demo.c.html}}
+	\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{В следващата лекция предстои да обсъдим и механизми за междупроцесна комуникация}
+	\end{center}
+\end{frame}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/wiki/Reentrancy_(computing)}
+		\item \url{https://en.wikipedia.org/wiki/Synchronization_(computer_science)}
+		\item \url{https://en.wikipedia.org/wiki/Thread_safety}
+		\item \url{https://lwn.net/Articles/823513/}
+		\item \url{https://opensource.com/article/19/4/interprocess-communication-linux-storage}
+		\item \url{https://tldp.org/pub/Linux/docs/ldp-archived/linuxfocus/English/Archives/lf-2003_01-0281.pdf}
+		\item \url{https://man7.org/conf/lca2013/IPC_Overview-LCA-2013-printable.pdf}
+		\item \url{https://man7.org/linux/man-pages/man7/futex.7.html}
+		\item \url{https://man7.org/training/download/lusp_pshm_slides.pdf}
+		\item \url{https://inst.eecs.berkeley.edu/~cs162/fa19/static/lectures/11.pdf}
+		\item \url{https://inst.eecs.berkeley.edu/~cs162/fa19/static/lectures/4.pdf}
+		\item \url{https://www.gnu.org/software/libc/manual/html_node/Nonreentrancy.html}
+		\item \url{https://www.kernel.org/doc/ols/2002/ols2002-pages-479-495.pdf}
+		\item \url{https://developer.arm.com/documentation/dht0008/a/arm-synchronization-primitives/exclusive-accesses/ldrex-and-strex}
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+

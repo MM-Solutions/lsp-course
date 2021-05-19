@@ -1,0 +1,12 @@
+/* Pseudocode examples */
+/* Prevents preemption */
+void lock() {
+    /* A special function, which calls
+    processor-specific instructions */
+    interrupts_disable();
+}
+
+/* Reenables preemption */
+void unlock() {
+    interrupts_enable();
+}
