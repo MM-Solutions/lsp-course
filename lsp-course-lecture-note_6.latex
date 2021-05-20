@@ -710,6 +710,12 @@
 							\item предвид нарастващите почти уникални идентификатори, алгоритъмът е детерминиран
 			            }
 		      \end{itemize}
+		\item Повече информация:
+		      \begin{itemize}
+			      \scriptsize{
+							\item \url{https://amturing.acm.org/pdf/LamportTuringTranscript\%20.pdf}
+			            }
+		      \end{itemize}
 	\end{itemize}
 }
 
