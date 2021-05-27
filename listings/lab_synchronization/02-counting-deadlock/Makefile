@@ -1,4 +1,4 @@
 
 
 main: main.c
-	gcc -Wall -lpthread -Og main.c -o main -g
+	gcc -Wall -pthread -Og main.c -o main -g
