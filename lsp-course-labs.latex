@@ -606,7 +606,7 @@ $ git show COMMIT
 \end{frame}
 
 \section { Същински програми }
-\subsection { Pthreads. Разпаралеляване на примерна задача (quicksort). Демонстриране на механизми за синхронизация. }
+\subsection { Pthreads. Разпаралеляване на примерна задача (quicksort). }
 
 \begin{frame}[fragile]
   \frametitle{ PThreads }
@@ -646,6 +646,48 @@ $ git show COMMIT
     \item Възможно ли е тази програма да се напише без pthreads?
   \end{itemize}
 \end{frame}
+
+\subsection { Механизми за синхронизация. }
+\begin{frame}[fragile]
+  \frametitle{ Критична секция }
+  \begin{itemize}
+    \item Пуснете програма \verb|listings/lab_synchronization/01-parallel-counting|.
+    \item Каква е грешката в тази програма? Поправете я.
+    \item Програмата дава пример какво е критична секция.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Критична секция - анализ}
+  \begin{itemize}
+    \item Измерете времето за изпълнение на програмата с и без поправката.
+    \item Колко е голяма разликата на Вашата машина?
+    \item Защо има разлика в бързодействието?
+  \end{itemize}
+\begin{lstlisting}
+$ time ./main
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Мъртва хватка}
+  \begin{itemize}
+    \item Пуснете програмата \verb|listings/lab_synchronization/02-counting-deadlock|.
+    \item Защо не приключва?
+  \end{itemize}
+\begin{lstlisting}
+$ gdb ./main
+run
+Ctrl+C
+info threads
+thread 2
+backtrace
+up
+up
+list
+\end{lstlisting}
+\end{frame}
+
 
 \subsection { Pipes. Обмяна на съобщения между процеси. }
 \begin{frame}[fragile]
@@ -824,7 +866,6 @@ $ grep '^open' out.txt
     \item Открийте добавения от Вас \verb|ioctl| в изхода.
   \end{itemize}
 \end{frame}
-
 
 \section { Вграден Линукс }
 \subsection { GPIO, I2C - drivers in userspace. }
