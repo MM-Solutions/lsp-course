@@ -22,6 +22,7 @@ static void *mythread(void *arg)
 
 	for (i = 0;  i < num_iterations; i++) {
 		(*c)++;
+		asm ("" : : : "memory"); /* Tell compiler to not optimize the loop. */
 	}
 	return NULL;
 }
