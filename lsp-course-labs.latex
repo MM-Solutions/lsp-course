@@ -45,7 +45,7 @@
   \def\svgwidth{5cm}
   \input{./images/Logo_MMS_svg.pdf_tex}
 }
-\date{21.04.2021}
+\date{01.06.2021}
 
 
 \begin{document}
@@ -872,7 +872,65 @@ $ grep '^open' out.txt
 \begin{frame}[fragile]
   \frametitle{ Стандартни интерфейси към периферията }
   \begin{itemize}
-    \item TODO.
+    \item Обикновено най-удачно е драйверът да е в ядрото.
+    \item Все пак понякога има възможност да е в userspace:
+    \begin{itemize}
+      \item I2C
+      \item GPIO
+      \item SPI
+      \item UART
+      \item libusb
+      \item gadgetfs
+      \item UIO
+      \item /dev/mem
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ GPIO }
+  \begin{itemize}
+    \item Какво е \href{https://en.wikipedia.org/wiki/General-purpose_input/output}{GPIO}?
+    \item Управлението чрез \verb|sysfs| е по-старият метод.
+    \begin{itemize}
+      \item \url{https://www.kernel.org/doc/Documentation/ABI/obsolete/sysfs-gpio}
+    \end{itemize}
+    \item По-новият и препоръчван метод е с \verb|ioctl|:
+    \begin{itemize}
+      \item \url{https://www.kernel.org/doc/Documentation/ABI/testing/gpio-cdev}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача 1 }
+  \begin{itemize}
+    \item Свържете светодиод към избрано GPIO през резистор:
+    \begin{itemize}
+	    \item \verb@(GPIOxyz) o----[===]--|>|----o (GND)@
+    \end{itemize}
+    \item Напишете програма, която да мига светодиода през 1 секунда.
+    \item Използвайте \verb|listings/lab_gpio/blink.c| като отправна точка.
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{ I2C }
+  \begin{itemize}
+    \item \href{https://en.wikipedia.org/wiki/I%C2%B2C}{I2C} е серийна комуникационна шина.
+    \item Възможност за управление от userspace.
+    \item Данни се изпращат и приемат посредством \verb|ioctl|.
+    \item \url{https://www.kernel.org/doc/Documentation/i2c/dev-interface}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{ Задача 2 с повишена трудност}
+  \begin{itemize}
+    \item Прочетете температурата от TMP101 датчик.
+    \item Публикувайте като нова директория във Вашето GIT хранилище.
   \end{itemize}
 \end{frame}
 
