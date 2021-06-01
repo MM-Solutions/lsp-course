@@ -1,0 +1,683 @@
+\documentclass[lualatex,12pt,aspectratio=169]{beamer}
+\usepackage{polyglossia}
+\setmainlanguage{bulgarian}
+\setotherlanguage{english}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{pmboxdraw}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{fontspec}
+\usepackage{mathtools}
+
+% Not recommended, but sometimes useful
+\usepackage{adjustbox}
+
+\usepackage[
+		type={CC},
+		modifier={by-sa},
+		version={4.0},
+]{doclicense}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listingsutf8}
+
+% Font selection
+\setsansfont{freeserif}
+\setmainfont{freeserif}
+\setmonofont{CMU Typewriter Text}
+
+% Theme selection
+\usetheme{Antibes}
+\definecolor{MMGreen}{RGB}{46,142,9}
+\usecolortheme{dove}
+% You can have multiple color themes active at once
+\usecolortheme{orchid}
+
+% Custom title color
+\setbeamercolor{titlelike}{parent=structure,bg=MMGreen}
+\setbeamercolor{title}{fg=white}
+\setbeamercolor{frametitle}{fg=white}
+
+% Custom colors for the terminal block
+\definecolor{TermBlack}{RGB}{33,33,33}
+\definecolor{TermRed}{RGB}{206,0,0}
+\definecolor{TermGray}{RGB}{206,0,0}
+
+% Code listing style settings
+\lstset{
+		extendedchars=false,
+		language={C},
+		inputencoding=utf8,
+		basicstyle=\sffamily\scriptsize,
+		keywordstyle=\color{blue}\ttfamily,
+		stringstyle=\color{red}\ttfamily,
+		commentstyle=\color{MMGreen}\ttfamily,
+		breaklines=true
+}
+
+% Custom block for C listings
+\newtheorem{source}{//C}
+\BeforeBeginEnvironment{source}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=alerted text.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{source}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom block for Make listings
+\newtheorem{msource}{Makefile}
+\BeforeBeginEnvironment{msource}{
+		\setbeamercolor{block title}{use=alerted text,fg=white,bg=TermGray}
+		\setbeamercolor{block body}{parent=normal text,use=block title alerted,bg=}
+}
+\AfterEndEnvironment{msource}{
+		\setbeamercolor{block title}{use=structure,fg=white,bg=structure.fg!75!black}
+		\setbeamercolor{block body}{parent=normal text,use=block title,bg=block title.bg!10!bg}
+}
+
+% Custom example block font size
+\setbeamerfont{block body example}{size=\scriptsize}
+
+% Custom caption setup
+\captionsetup[subfloat]{position=bottom}
+\captionsetup[figure]{font=scriptsize,labelfont=scriptsize,labelformat=empty}
+
+\logo{
+	\def\svgwidth{2cm}
+	\input{images/Logo_svg.pdf_tex}
+}
+
+% Title comes here
+\title{Системно програмиране за Линукс}
+\subtitle{Средства и механизми за междупроцесна комуникация.}
+\author{Ангел Чолаков}
+\institute{
+	\def\svgwidth{5cm}
+	\input{images/Logo_MMS_svg.pdf_tex}
+}
+\date{02.06.2021г.}
+
+% Document starts here
+\begin{document}
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\doclicenseThis
+\end{frame}
+
+% Съдържание
+\begin{frame}[allowframebreaks]
+	\frametitle{Съдържание}
+	\tableofcontents
+\end{frame}
+
+\section{Въведение}
+\frame {
+	\frametitle{Цел на презентацията}
+	\begin{itemize}
+		\item Да опита да поясни:
+		      \begin{itemize}
+						\scriptsize{
+							\item примерни сценарии и предпоставки за обмен на данни между задачи и потоци;
+							\item какви средства предоставя ОС за междупроцесна комуникация;
+							\item как описаните примитиви се категоризират според целевата функция;
+							\item какви политики и механизми се ползват за подсигуряване на междупроцесна комуникация;
+							\item илюстрира практически примери в контекста на Posix Pthread API и Линукс ОС							
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Предпоставки за междупроцесна комуникация}
+	\begin{itemize}
+		\item Очертават се:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{обмен на пакети работни данни} за нуждите на коопериращи се процеси, развиващи с в общо виртуално адресно пространство върху една система;
+							\item отправяне на \textbf{заявка за изпълнение на услуга} от страна на операционната система;
+							\item \textbf{сигнализация} за настъпило \textbf{събитие} или \textbf{изключителна ситуация} по време на работа;
+							\item \textbf{поточен синхронизиран} или \textbf{асинхронен обмен на пакети данни} с вариращ размер между различни компютърни системи, свързани в мрежа
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Класификация на подходите за междупроцесна комуникация}
+\frame {
+	\frametitle{Опит за класификация на подходите}
+	\begin{itemize}
+		\item Възоснова на:
+		      \begin{itemize}
+						\scriptsize{
+							\item употреба на \textbf{специализирани комуникационни похвати и средства}, често пъти включващи запис и четене на данни към и от ядрото на ОС в ролята на посредник и арбитър;
+							\item дефиниране и заделяне на \textbf{споделени региони памет} в общото виртуално адресно пространство без необходимост от междинни обръщения към ОС и допълнителни системни извиквания
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Фокусът в настоящата презентация се поставя върху методи за обмен на данни между процесите в рамките на една компютърна система без разглеждане на мрежови примитиви и парадигми.}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Средства за комуникация: подкатегории}
+	\begin{itemize}
+		\item Под контрола на ОС се обособяват:
+		      \begin{enumerate}
+						\scriptsize{
+							\item \textbf{буферирани} или \textbf{не}, \textbf{блокиращи} или \textbf{не}, \textbf{поточно (byte stream)} ориентирани канали за предаване на информация;
+							\item методи, базирани на \textbf{комуникация с работни обекти (съобщения)} и привързване на процесите към опашки от входящи и изходящи съобщения \textbf{(message queues и sockets)};
+							\item технология с \textbf{неявна вътрешна синхронизация} между асоциираните процеси или такава, изискваща \textbf{експлицитна допълнителна синхронизация};
+							\item методи с \textbf{изчерпващ харатер на четенето} на нови данни или такива, при които четенето е разрешено за множество процеси или потоци без то да е свързано с безвъзвратно унищожаване на прочитаните данни и изваждането им от комуникационната среда
+						      }
+		      \end{enumerate}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Средства за комуникация: продължение}
+	\begin{itemize}
+    \item Примери към посочените подкатегории:
+		      \begin{itemize}
+						\scriptsize{
+							\item по т.1 - вече разгледаните на упражнения pipes (програмни тръби);
+							\item по т.2 - обекти съобщения и опашки от съобщения (message queues);
+							\item по т.3 - операции по четене и запис чрез файлове и файлови дескриптори (автоматично синхронизирани) и комуникация чрез споделени обекти или блокове памет (налагащи явна координация);
+							\item по т.4 - извличане на количество прочетени байтове от файлов дескриптор (данните се източват от програмния канал и вече не са достъпни) или четене от споделен масив структури в паметта (обектите не се освобождават в резултат на четенето)
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\section{Разновидности комуникационни примитиви}
+\frame {
+	\frametitle{Междупроцесна комуникация: разновидности механизми}
+	\begin{itemize}
+		\item Съществуват два основни вида - посредством:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{сигнали} - обслужват се посредством подсистема в ядрото на ОС служат за основна \textbf{форма на междупроцесна нотификация};
+							\item \textbf{програмни канали} - служат за обмен на порции данни с произволен размер
+						      }
+		      \end{itemize}
+    \item Програмните канали се разделят допълнително на:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{поточни}: \textbf{тръби (pipes)}, \textbf{опашки от съобщения (message queues)} и \textbf{сокети (sockets)};
+							\item решения със \textbf{споделена памет}: чрез маркирани \textbf{сегменти за целта (Posix shared memory)} или \textbf{изобразяване} на обекти в споделени сегменти памет \textbf{(memory mapping)}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Изискващи синхронизация видове примитиви: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_8/fig_8.png}
+			\caption{pic. based on \url{https://man7.org/conf/lca2013/IPC_Overview-LCA-2013-printable.pdf}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{А как изглежда програмният интерфейс за ползване на комуникационни обекти и инструменти в контекста на Линукс ОС и Posix libpthread?}
+	\end{center}
+\end{frame}
+
+\section{Механизъм с разпращане и обслужване на сигнали}
+\frame {
+	\frametitle{Работа със сигнали}
+	\begin{itemize}
+		\item Дефиниция и предназначение:
+		      \begin{itemize}
+						\scriptsize{
+							\item служат за \textbf{известяване} на процесите за възникнали \textbf{събития}, представящи изключителни състояния или заявка за програмно взаимодействие;
+							\item диспечерират се от ядрото и се обслужват посредством структури от данни, част от контролния блок за управление на процесите;
+							\item не са проектирани и не са пригодни за разширена, максимално ефикасна или надеждна форма на комуникация, а служат по-скоро само като \textbf{базов способ за нотификация}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Разновидности асинхронни комуникационни средства}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.5\textwidth, height=0.45\textheight, keepaspectratio]{images/lec_8/fig_9.png}
+			\caption{pic. based on \url{https://en.wikipedia.org/wiki/Interrupt_handler}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Реализация на сигналите в Линукс ОС}
+	\begin{itemize}
+		\item Разчита на:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{побитови полета}, част от контролния блок за управление на процесите (представен чрез \textbf{\lstinline{task_struct}} структурата, описваща атрибутите на всеки процес);
+							\item възникването на събитие и реалното му обработване се отразява чрез членове от специализиран тип \textbf{\lstinline{sigset_t saved_sigmask}} и \textbf{\lstinline{struct signal_struct *signal}} инстанции, с маска на временно блокираните сигнали в \textbf{\lstinline{blocked}} в контекста на Линукс ОС;
+							\item посочените структури идентифицират всяко събитие чрез \textbf{цяло число} и \textbf{адрес на функция за изпълнение при възникване};
+							\item арбитраж и реално вътрешно обслужване посредством ядрото на Линукс ОС;
+							\item ако разработчикът не укаже програмно функция за обслужване на събитие по сигнал, ядрото изпълнява стандартна такава по подразбиране
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Последователност по обработка на сигналите}
+	\begin{itemize}
+		\item Базирана е върху:
+		      \begin{itemize}
+						\scriptsize{
+							\item ако даден сигнал не е временно забранен и процес се намира в чакащо състояние, възникването на събитието е съпроводено с евентуално събуждане на процеса и поставянето му в опашката на готовите задачи;
+							\item ако сигнал възникне по време на изпълняващ се процес, последният бива прекъсван и контролът се предава на ядрото;
+							\item при активация от страна на диспечера и след всяко изпълнение на системно извикване се прави проверка на флаговете в \textbf{\lstinline{signal}} and \textbf{\lstinline{blocked}} полетата, за да се доставят и обслужат неотчетени сигнали;
+							\item \textbf{подпрограма за обслужване на събитието} се указва поредством инстанция на \textbf{\lstinline{sigaction} структура};
+							\item преди изпълнение на обработчика на събитието - ядрото съхранява състоянието на прекъснатия процес, за да може контекстът да бъде възобновен по-късно;
+							\item контролът се връща обратно на потребителското задание, ако то не се терминира, посредством опционално имплементирано системно извикване: \textbf{sigreturn}, а ако такова отсъства - по архитектурно специфичен начин
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Механика на сигналното взаимодействие: продължение}
+	\begin{itemize}
+		\item Особености:
+		      \begin{itemize}
+						\scriptsize{
+							\item само ядрото и суперпотребителите могат да разпращат сигнали до всички процеси;
+							\item нормален потребителски процес е в състояние да сигнализира само процеси с позволени потребителски или групов идентификатор или със съвпадащ групов идентификатор;
+							\item с изключение на сигналите \textbf{SIGSTOP} and \textbf{SIGKILL} процес може програмно да заяви блокиране на всички останали сигнали, като в този случай блокираните остават в очакващо състояние;
+							\item всеки процес разполага с \textbf{побитов вектор (битова маска)}, която разкрива кои сигнали са позволени							
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Обслужване на сигнали: диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.75\textheight, keepaspectratio]{images/lec_8/fig_11.png}
+			\caption{pic. based on \url{https://elixir.bootlin.com/linux/v5.12.1/source/arch/x86/kernel/signal.c\#L707}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Обработка на сигнали в процес с подчинени потоци}
+	\begin{itemize}
+		\item Специфики:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{породен процес потомък} или нишка \textbf{наследяват} от родителския процес битовата маска с разрешени за детекция сигнали;
+							\item всеки поток разполага със \textbf{собствен контролен блок за диспечериране}, който съдържа независимо конфигурируема битова маска за контрол върху набора позволени сигнали;
+							\item дадено събитие може да е съпроводено със сигнал, насочен към процес родител или към конкретна нишка (като резултат от опит за неправомерен достъп до паметта - \textbf{SIGSEGV} или грешка при изчисления - \textbf{SIGFPE} например);
+							\item при процес с няколко активни потока и при условие, че те не са забранили отработването на определен сигнал, диспечерът на ядрото избира към кой от потоците да бъде предаден сигналът, насочен към родителския процес;
+							\item всяка нишка указва своето терминиране или спонтанно възникнала изключителна ситуация чрез генериране на специализиран сигнал \textbf{SIGCHLD}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Прихващане на сигналите в Линукс: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{int sigprocmask(int how, const sigset_t *restrict set, sigset_t *restrict oldset);} - служи за промяна на списъка с блокирани сигнали;
+							\item \lstinline{int sigpending(sigset_t *set);} - разкрива кои сигнали са позволени и кои чакащи;
+							\item \lstinline{int sigsuspend(const sigset_t *mask);} - преустановява изпълнението на процес до възникване на определен сигнал;
+							\item \lstinline{typedef void (*sighandler_t)(int);} - прототип на обработваща даден сигнал функция;
+							\item \lstinline{sighandler_t signal(int sig, sighandler_t handler);} - асоцииране на сигнал с обработваща функция
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{Шаблон за програмиране на обработваща функция}
+	
+	\scriptsize{
+		\lstinputlisting{listings/lec_8/lst_1.txt}
+	}
+	\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Работа със сигнали: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/signals/sigmask_longjmp.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Работа с именувани програмни канали}
+\frame {
+	\frametitle{Именувани програмни канали (fifos)}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+						\scriptsize{
+							\item представляват \textbf{форма на еднопосочен канал на комуникация} тип "пощенска кутия" и позволяват пренасочване на изходния поток данни от един процес да служи за входен поток на друг;
+							\item за процесите \textbf{вътрешната реализация} на комуникационните тръби е \textbf{прозрачна} и тя няма отношение върху поведението им
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Програмни канали: имплементация в Линукс}
+	\begin{itemize}
+		\item Базира се на:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{тръбите} се изграждат чрез \textbf{двойка файлови дескриптори}, насочени към временно споделена обща странична референция в адресното пространство на виртуалната памет;
+							\item всяка инстанция от двойката дескирптори съдържа \textbf{указатели към различни привързани процедури} - за запис от едната страна на тръбата и четене - от другата;
+							\item при запис потокът от байтове се копира в общия страничен регион, а при четене - се прави копие от споделения блок към сегментите на процеса читател;
+							\item \textbf{вътрешната синхронизация} и \textbf{контрол на състоянието на процесите} става от ядрото, като то гарантира прилагане на обекти ключалки, опашки, блокиране на процеси при запълване на тръбата с разпращане на сигнали
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Posix named pipes: илюстрация на механизма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_8/fig_6.png}
+			\caption{pic. based on \url{https://elixir.bootlin.com/linux/latest/source/include/linux/pipe_fs_i.h\#L26}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Posix fifos: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{int mkfifo(const char *pathname, mode_t mode);} - изгражда програмна именувана тръба посредством предоставен аргумент - път към файлов обект;
+							\item \lstinline{int mkfifoat(int dirfd, const char *pathname, mode_t mode);} - аналог на горната функция, но с разлики в третирането на аргумента път и неговия релативен или абсолютен характер
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Работа с програмни тръби: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/pipes/fifo_seqnum_client.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Използване на опашки от съобщения}
+\frame {
+	\frametitle{Опашки от съобщения: (message queues)}
+	\begin{itemize}
+		\item Дефиниция на подхода:
+		      \begin{itemize}
+						\scriptsize{
+							\item процесите обменят данни под формата на \textbf{съобщения}, пакетирани в структури със съответен тип и атрибути;
+							\item съобщенията се организират в \textbf{привързани към процесите опашки}, всяка от които разполага с уникален идентификатор;
+							\item изпращането и получаването на съобщения се реализира с помощта на \textbf{системни извиквания} и таблица на създадените и активни опашки в ядрото на ОС;
+							\item механизмът работи с \textbf{копиране на данни} от адресно пространство на един процес в пространството на друг;
+							\item опит за изпращане в пълна опашка или за четене от празна води до \textbf{блокиране} на процеса писател или читател съответно
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Опашки от съобщения: реализация в Линукс}
+	\begin{itemize}
+		\item Основава се на:
+		      \begin{itemize}
+						\scriptsize{
+							\item създаването на опашка е асоциирано със заделяне на свързан файлов дескриптор от тип \textbf{\lstinline{mqd_t}};
+							\item този дескриптор е насочен към логически обект (инстанция на \textbf{\lstinline{struct mqueue_inode_info}}, съдържаща \textbf{червено-черно дърво} от елементи съобщения), достъпван чрез виртуална файлова система;
+							\item Линукс третира всеки файлов запис опашка като традиционен файлов обект и позволява мониторинг с обичайните системни извиквания (като \textbf{select} и \textbf{epoll} например);
+							\item всяко разпращано съобщение притежава \textbf{атрибути} и \textbf{указан приоритет}, като първи се доставят високоприоритетните съобщения;
+							\item веднъж изградена, една опашка от съобщения остава да консумира памет (структури на ядрото и страници памет), докато не бъде освободена чрез \textbf{\lstinline{mq_unlink}}
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Диаграма на вътрешното представяне}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_8/fig_7.png}
+			\caption{pic. based on \url{https://man7.org/linux/man-pages/man3/mq_notify.3.html}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Posix message queues: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{mqd_t mq_open(const char *name, int oflag, mode_t mode, struct mq_attr *attr);} - създава или отваря нова Posix опашка от съобщения;
+							\item \lstinline{int mq_send(mqd_t mqdes, const char *msg_ptr, size_t msg_len, unsigned int msg_prio);} - добавя съобщение за разпращане в опашката, идентифицирана от подадения дескриптор;
+							\item \lstinline{ssize_t mq_receive(mqd_t mqdes, char *msg_ptr, size_t msg_len, unsigned int *msg_prio);} - извежда най-старото постъпило съобщение с най-висок приоритет от указаната опашка;
+							\item \lstinline{int mq_notify(mqd_t mqdes, const struct sigevent *sevp);} - позволява извикващият процес да се обвърже с доставянето на съобщения по указаната опашка;
+							\item \lstinline{int mq_unlink(const char *name);} - заявява последващо осбовождаване на посочения обект опашка, когато всички ползватели затворят референциите към съответния дескриптор обект;
+							\item \lstinline{int mq_close(mqd_t mqdes);} - затваряне на файловия дескриптор, идентифициращ опашката
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Работа с Posix опашки от съобщения: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/pmsg/pmsg_receive.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Комуникация чрез споделени региони от паметта}
+\frame {
+	\frametitle{Механизъм на комуникация с обща памет}
+	\begin{itemize}
+		\item Дефиниция:
+		      \begin{itemize}
+						\scriptsize{
+							\item наподобява размяна на съобщения, но \textbf{без необходимост от копиране на данни} между адресните пространства на процесите и/или процесите и ядрото;
+							\item позволява множество процеси да изобразяват сегменти от виртуалното си адресно пространство в \textbf{общ физически сегмент на оперативната памет};
+							\item възможен е \textbf{директен обмен на данни} между процесите, но с добавен ангажимент към разработчиците за обезпечаване на синхронизация и интегритет при организиране на комуникацията;
+							\item механизмът разчита на подсистемата за \textbf{странично-сегментна организация} на виртуалната памет
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+  \frametitle{Работа с обща памет: опростена диаграма}
+	\begin{center}
+		\begin{figure}
+			\includegraphics[width=.9\textwidth, height=0.4\textwidth, keepaspectratio]{images/lec_8/fig_13.png}
+			\caption{pic. based on \url{https://man7.org/linux/man-pages/man7/shm_overview.7.html}}
+		\end{figure}
+	\end{center}
+  \end{frame}
+
+\frame {
+	\frametitle{Комуникация с обща памет: предимства и недостатъци}
+	\begin{itemize}
+		\item Положителни страни:
+		      \begin{itemize}
+						\scriptsize{
+							\item интегрална част при организацията на многопоточна работа, като породените процеси споделят памет и реферирани променливи автоматично;
+							\item \textbf{по-висока производителност при междупроцесна комуникация}, защото се избягва междинно копиране на буфери, а също и редица допълнителни системни извиквания;
+							\item \textbf{разпределя се множество от виртуални адреси}, а въвеждането и извеждането на страници от паметта е отговорност на ОС
+						      }
+		      \end{itemize}
+    \item Недостатъци:
+		      \begin{itemize}
+						\scriptsize{
+							\item \textbf{необходима е по-комплексна синхронизация}, както програмна, така и съобразена с детайлите на микропроцесорната имплементация
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Posix shared memory: приложна секция}
+	\begin{itemize}
+		\item Полезни API функции:
+		      \begin{itemize}
+						\scriptsize{
+							\item \lstinline{int shm_open(const char *name, int oflag, mode_t mode);} - създава нов Posix обект, представящ регион споделена памет;
+							\item \lstinline{int shm_unlink(const char *name);} - освобождава референцията към указания чрез аргумента име споделен обект памет;
+							\item \lstinline{void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);} - изобразява обект, идентифициран чрез аргумента файлов дескриптор, във виртуалното адресно пространство на извикващия процес и го прави достъпен за манипулация;
+							\item \lstinline{int munmap(void *addr, size_t length);} - освобождава референцията към споделения регион памет, указан чрез аргумента виртуален адрес 
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{\centerline{Работа с Posix споделен регион памет: разглеждане на пример:} \newline \url{https://man7.org/tlpi/code/online/dist/pshm/pshm_create.c.html}}
+	\end{center}
+\end{frame}
+
+\section{Обобщение, насоки и препоръки}
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Как да преценим какъв подход и програмни инструменти да изберем? Време за обобщение...}
+	\end{center}
+\end{frame}
+
+\frame {
+	\frametitle{Полезни насоки и препоръки}
+	\begin{itemize}
+		\item По отношение на жизнения цикъл на заданията избор между:
+		      \begin{itemize}
+						\scriptsize{
+							\item средства под контрола на всеки процес като обработчици на сигнали или експортирани споделени обекти в паметта;
+							\item примитиви, които са извън контекста на приложенията и се разглеждат като споделен комуникационен ресурс - например именувани програмни канали, изобразявани в паметта файлове и други;
+							\item подходи, които не налагат явно програмиране на функционалност - пренасочване на стандартен вход и изход и анонимни програмни тръби за обмен на данни
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Полезни насоки и препоръки: продължение}
+	\begin{itemize}
+		\item По отношение на изискванията за бързодействие:
+		      \begin{itemize}
+						\scriptsize{
+							\item дали е уместно да разчитаме на системния диспечер и веригите на обръщения към ядрото чрез поредици системни извиквания;
+							\item дали целим оптимално бързодействие и минимално разхищение на системни ресурси - тогава добър избор би бил механизмът на споделената памет;
+							\item дали заданието ни позволява допълнително време за програмиране на специализирана комуникационна логика (с помощта на вече дискутираните подходи) или се стремим към бърза прототипизация, при която процесите общуват неявно - само чрез пренасочване на своя стандартен вход и изход 
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Полезни насоки и препоръки: финални такива}
+	\begin{itemize}
+		\item Относно характера на комуникацията
+		      \begin{itemize}
+						\scriptsize{
+							\item дали алгоритъмът налага синхронизация и определен протокол на комуникацията - в този случай опашките от съобщения биха били удачни;
+							\item дали логиката на приложението ни е зависима от асинхроннно или синхронно постъпване на нови данни и какви времеви толеранси се допускат - отговорът се определя според сложността на решаваната задача;
+							\item дали алгоритъмът налага буфериране и блокиране на функционалността при липса на нови данни или не толерира това - би могло да се направи избор между четене и запис от програмни канали или арбитриране на споделени структури в паметта
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\frame {
+	\frametitle{Вместо заключение...}
+	\begin{itemize}
+		\item Някои финални бележки:
+		      \begin{itemize}
+						\scriptsize{
+							\item системното приложно програмиране създава предпоставки за креативност, като не съществуват фиксирани правила и норми;
+							\item изборът на механизми за междупроцесна комуникация и синхронизация се определя динамично при проектиране според изискванията на алгоритмите: за ефикасност, консумирана памет, допустимите времеви ограничения, характера на програмния товар и др.;
+							\item инвестирайте време и усилия в разучаването на вече достъпните инструменти и програмни техники
+						      }
+		      \end{itemize}
+	\end{itemize}
+}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Разполагате с богат набор от налични програмни средства, които ОС и системните библиотеки ви предоставят. \newline Използвайте ги умело и ще подсигурите желаната функционалност. \newline Успешна работа!}
+	\end{center}
+\end{frame}
+
+\section{Заключение}
+\begin{frame}
+	\frametitle{Бележки по материалите и изложението}
+	\begin{itemize}
+		\scriptsize{
+		\item материалът е изготвен с образователна цел;
+		\item съставителите не носят отговорност относно употребата и евентуални последствия;
+		\item съставителите се стремят да използват публично достъпни източници на информация и разчитат на достоверността и статута на прилаганите или реферирани материали;
+		\item текстът може да съдържа наименования на корпорации, продукти и/или графични изображения (изобразяващи продукти), които може да са търговска марка или предмет на авторско право - ексклузивна собственост на съотнесените лица;
+		\item референциите могат да бъдат обект на други лицензи и лицензни ограничения;
+		\item съставителите не претендират за пълнота, определено ниво на качество и конкретна пригодност на изложението;
+		\item съставителите не носят отговорност и за допуснати фактологически или други неточности;
+		\item свободни сте да създавате и разпространявате копия съгласно посочения лиценз;
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Референции към полезни източници на информация}
+	\begin{itemize}
+		\scriptsize{
+		\item \url{https://en.wikipedia.org/}
+		\item \url{https://en.wikipedia.org/wiki/Inter-process_communication}
+		\item \url{https://opensource.com/article/20/1/inter-process-communication-linux}
+		\item \url{https://tldp.org/LDP/tlk/ipc/ipc.html}
+		\item \url{https://lwn.net/Articles/823513/}
+		\item \url{https://man7.org/training/download/lusp_pshm_slides.pdf}
+		\item \url{https://man7.org/linux/man-pages/man3/sendmsg.3p.html}
+		\item \url{https://man7.org/conf/lca2013/IPC_Overview-LCA-2013-printable.pdf}
+		\item \url{https://man7.org/linux/man-pages/man3/mkfifo.3.html}
+		\item \url{https://man7.org/linux/man-pages/man2/sigreturn.2.html}
+		\item \url{https://man7.org/tlpi/download/TLPI-52-POSIX_Message_Queues.pdf}
+		\item \url{https://search.creativecommons.org/}
+		}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{}
+	\begin{center}
+		\textbf{Благодаря Ви за вниманието!}
+	\end{center}
+\end{frame}
+
+\end{document}
+

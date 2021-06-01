@@ -1,0 +1,14 @@
+/* when the parent process wants to ignore the SIGCHLD signal */
+signal(SIGCHLD, SIG_IGN);
+
+/* or when the parent process wants to handle the SIGCHLD signal explicitly */
+struct sigaction action;
+sigemptyset(&action.sa_mask );
+action.sa_handler = my_handler;
+action.sa_flags = SA_NOCLDWAIT;
+sigaction(SIGCHLD, &action, NULL);
+
+/* where the signal handler has been defined beforehand */
+static void my_handler(int signum){
+	/* some reentrant code follows here */
+}
